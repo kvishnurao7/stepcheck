@@ -1,5 +1,8 @@
 // All prompt text in one place so the "never reveal the answer" rules stay consistent.
 
+// Keep in sync with CHAPTERS in src/lib/styles.js.
+const CHAPTER_LIST = "Real Numbers, Polynomials, Pair of Linear Equations, Quadratic Equations, Arithmetic Progressions, Triangles, Coordinate Geometry, Introduction to Trigonometry, Heights & Distances, Circles, Areas Related to Circles, Surface Areas & Volumes, Statistics, Probability";
+
 export const SYSTEM_CHECK = `You are "StepCheck", a step-verifier for CBSE Class 10 Mathematics (India), calibrated to the NCERT textbook method and the CBSE board step-wise marking scheme (method marks are awarded per step: formula written, substitution shown, correct manipulation, answer with units; error-carried-forward applies).
 
 ABSOLUTE RULES:
@@ -10,7 +13,10 @@ ABSOLUTE RULES:
 5. If the working is unreadable or the question is missing, set verdict to "unclear".`;
 
 export function checkUserText(chapter, question, typedWork, hasImage) {
-  return `Chapter: ${chapter}
+  const chapterLine = chapter
+    ? `Chapter (student's guess — papers are often mixed): ${chapter}. If the question actually belongs to a different Class 10 maths chapter, do NOT refuse — check it fully anyway and report the real chapter in the "chapter" field.`
+    : `Chapter: not specified. Identify it yourself from the question/working — choose ONE from: ${CHAPTER_LIST}.`;
+  return `${chapterLine}
 ${question ? `Question: ${question}` : "Question: not typed — read it from the image if visible."}
 ${typedWork ? `Student's typed working:\n${typedWork}` : ""}
 ${hasImage ? "The student's handwritten working is in the attached photo. Read every line, including cancellations and margin work." : ""}
@@ -18,6 +24,7 @@ ${hasImage ? "The student's handwritten working is in the attached photo. Read e
 Respond with ONLY raw JSON, no fences:
 {
   "verdict": "all_correct" | "error_found" | "unclear",
+  "chapter": "<the chapter this question actually belongs to — exactly one of: ${CHAPTER_LIST}>",
   "correct_upto": "<which steps are fine, e.g. 'Steps 1-3 correct'>",
   "first_wrong_step": "<quote/describe the exact first wrong line, or null>",
   "what_went_wrong": "<plain explanation WITHOUT the corrected value>",
@@ -34,7 +41,8 @@ Respond with ONLY raw JSON, no fences:
   "self_explanation_prompt": "<one question asking the student to explain WHY the step was wrong, in their own words>",
   "encouragement": "<one specific honest sentence>"
 }
-If verdict is "all_correct": hints = [], first_wrong_step = null, but still fill marks_at_risk with any presentation marks at risk, and exam_marking_tips.`;
+If verdict is "all_correct": hints = [], first_wrong_step = null, but still fill marks_at_risk with any presentation marks at risk, and exam_marking_tips.
+If the image contains no Class 10 mathematics at all (e.g. another subject), set verdict to "unclear" and say so plainly.`;
 }
 
 export function guardUserText(question, resultJson) {
@@ -66,7 +74,7 @@ Respond ONLY raw JSON: {"question": "<the new question>"}`;
 }
 
 export function parsePaperUserText(rawText) {
-  return `Parse this CBSE Class 10 Mathematics question paper into structured JSON. Assign each question to ONE chapter from this exact list: Real Numbers, Polynomials, Pair of Linear Equations, Quadratic Equations, Arithmetic Progressions, Triangles, Coordinate Geometry, Introduction to Trigonometry, Heights & Distances, Circles, Areas Related to Circles, Surface Areas & Volumes, Statistics, Probability.
+  return `Parse this CBSE Class 10 Mathematics question paper into structured JSON. Assign each question to ONE chapter from this exact list: ${CHAPTER_LIST}.
 
 Paper text:
 ${rawText}

@@ -5,8 +5,10 @@ import { resizeImage } from "../lib/image.js";
 import { todayStr, addDays, REVIEW_GAPS } from "../lib/storage.js";
 import Notebook from "./Notebook.jsx";
 
+const AUTO = ""; // empty chapter = let the AI identify it (papers are often mixed)
+
 export default function Check({ view, data, setData, prefill }) {
-  const [chapter, setChapter] = useState(prefill?.chapter || CHAPTERS[3]);
+  const [chapter, setChapter] = useState(prefill?.chapter || AUTO);
   const [question, setQuestion] = useState(prefill?.question || "");
   const [typedWork, setTypedWork] = useState("");
   const [image, setImage] = useState(null);
@@ -28,7 +30,9 @@ export default function Check({ view, data, setData, prefill }) {
     try {
       const r = await api.check({ chapter, question: question.trim(), typedWork: typedWork.trim(), image: image?.base64 || null });
       setResult(r);
-      setData({ ...data, checks: [...data.checks, { date: todayStr(), chapter, verdict: r.verdict }] });
+      // Trust the AI's chapter identification (papers are mixed); fall back to the manual pick.
+      const usedChapter = (r.chapter && CHAPTERS.includes(r.chapter)) ? r.chapter : (chapter || "Unclassified");
+      setData({ ...data, checks: [...data.checks, { date: todayStr(), chapter: usedChapter, verdict: r.verdict }] });
     } catch (e) {
       setError("The check didn't go through. Make sure the photo is clear and try again.");
     } finally { setBusy(false); }
@@ -37,7 +41,8 @@ export default function Check({ view, data, setData, prefill }) {
   const saveMistake = () => {
     if (!result || result.verdict !== "error_found") return;
     const entry = {
-      id: Date.now(), date: todayStr(), chapter,
+      id: Date.now(), date: todayStr(),
+      chapter: (result.chapter && CHAPTERS.includes(result.chapter)) ? result.chapter : (chapter || "Unclassified"),
       errorType: result.error_type || "Concept gap",
       concept: result.concept_to_revise || "", note: result.what_went_wrong || "",
       question: question.trim(), stage: 0, nextReview: addDays(todayStr(), REVIEW_GAPS[0]),
@@ -50,6 +55,7 @@ export default function Check({ view, data, setData, prefill }) {
     <main style={S.main}>
       <label style={S.label}>Chapter</label>
       <select value={chapter} onChange={(e) => setChapter(e.target.value)} style={S.select}>
+        <option value={AUTO}>Auto-detect (mixed paper — any chapter)</option>
         {CHAPTERS.map((c) => <option key={c}>{c}</option>)}
       </select>
 

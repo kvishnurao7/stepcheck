@@ -52,6 +52,7 @@ export default function Notebook({ result, question, view = "child", onSaveMista
       <div style={S.page}>
         <div style={{ ...S.pen, color: pen.color }}>{pen.text}</div>
 
+        {result.chapter && <Row label="Chapter" body={result.chapter} />}
         {result.correct_upto && result.verdict !== "unclear" && <Row label="Correct so far" body={result.correct_upto} />}
         {result.first_wrong_step && <Row label="First wrong step" body={result.first_wrong_step} accent={C.red} />}
         {result.what_went_wrong && result.verdict === "error_found" && <Row label="What went wrong" body={result.what_went_wrong} />}
