@@ -16,13 +16,13 @@ This file tells you (Claude Code) how the project fits together so you can exten
 
 ## Secrets / environment (never hard-code these)
 - `ANTHROPIC_API_KEY` — server-side only. Set in Vercel → Settings → Environment Variables.
-- `APP_PIN` — the family PIN. Every API call must include a matching `pin` (see `checkPin` in `api/_lib.js`).
+- **There is no auth** (the family-PIN gate was removed by request). The API endpoints are open — anyone with a deployed URL can trigger Anthropic calls billed to the key. Keep deployed URLs private, or reintroduce protection (Vercel access controls / an auth gate) before sharing widely.
 - `ANTHROPIC_MODEL` — optional; defaults to `claude-sonnet-5`. Change here to switch models.
 
 ## Layout
 ```
 api/
-  _lib.js          PIN check, Anthropic fetch, JSON parse, method guard
+  _lib.js          Anthropic fetch, JSON parse, method guard
   _prompts.js      ALL prompt text (the no-reveal rules live here)
   check.js         step check + answer-leak guard (chained)
   mark-answer.js   per-question CBSE marking for papers + guard
@@ -30,14 +30,13 @@ api/
   variant.js       generates a fresh practice question
   parse-paper.js   turns pasted paper text into structured questions
 src/
-  App.jsx          shell: PIN gate, header + view switch, tab bar, persistence
+  App.jsx          shell: header + view switch, tab bar, persistence
   lib/
-    api.js         client wrapper; attaches the PIN to every call
-    storage.js     localStorage: pin, view mode, {checks, mistakes, papers, attempts}
+    api.js         client wrapper for the serverless functions
+    storage.js     localStorage: view mode, {checks, mistakes, papers, attempts}
     styles.js      style tokens, CHAPTERS (14), ERROR_TYPES (7)
     image.js       client-side photo downscale/compress
   components/
-    PinGate.jsx    one-time PIN screen
     Check.jsx      photograph/type working → verify → save mistake
     Revise.jsx     spaced repetition (day 1,3,7,21) + practice variants
     Progress.jsx   mastery bars, error-leak bars, parent summary
@@ -67,7 +66,7 @@ When adding UI, branch on `view` the way the existing components do.
 - **Change marking behaviour:** edit `SYSTEM_MARK` / `markUserText` in `api/_prompts.js`.
 
 ## Upgrading storage to cross-device (future)
-Replace `src/lib/storage.js` reads/writes with calls to a Supabase (or similar) table keyed by the family, and add a server function that validates the PIN before every DB read/write. Keep the same data shapes so the components don't change. Do not expose the DB directly to the browser.
+Replace `src/lib/storage.js` reads/writes with calls to a Supabase (or similar) table keyed by the family, and add a server function that authenticates the family before every DB read/write. Keep the same data shapes so the components don't change. Do not expose the DB directly to the browser.
 
 ## Guardrails when editing
 - Keep all Anthropic calls server-side; never move the API key or model call into `src/`.

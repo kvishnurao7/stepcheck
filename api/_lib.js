@@ -3,19 +3,6 @@
 
 const MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-5";
 
-export function checkPin(req, res) {
-  const pin = req.body?.pin;
-  if (!process.env.APP_PIN) {
-    res.status(500).json({ error: "Server not configured: APP_PIN is missing." });
-    return false;
-  }
-  if (!pin || String(pin) !== String(process.env.APP_PIN)) {
-    res.status(401).json({ error: "invalid_pin" });
-    return false;
-  }
-  return true;
-}
-
 // Calls the Anthropic Messages API. `content` is the user-message content array
 // (text and/or image blocks). Returns the concatenated assistant text.
 export async function anthropic(content, { system, maxTokens = 1500 } = {}) {

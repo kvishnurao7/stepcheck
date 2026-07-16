@@ -67,5 +67,5 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(3000, () => {
   console.log("StepCheck local API running at http://localhost:3000/api/*");
-  console.log(`  APP_PIN: ${process.env.APP_PIN ? "set" : "MISSING"}   ANTHROPIC_API_KEY: ${process.env.ANTHROPIC_API_KEY ? "set" : "MISSING"}`);
+  console.log(`  ANTHROPIC_API_KEY: ${process.env.ANTHROPIC_API_KEY ? "set" : "MISSING"}`);
 });

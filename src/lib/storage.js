@@ -2,7 +2,6 @@
 // See CLAUDE.md → "Upgrading storage" for moving the error log to Supabase for cross-device sync.
 
 const KEYS = {
-  pin: "stepcheck.pin",
   view: "stepcheck.view",
   data: "stepcheck.data.v1", // { checks:[], mistakes:[], papers:[], attempts:[] }
 };
@@ -15,11 +14,6 @@ export const addDays = (dateStr, n) => {
   d.setDate(d.getDate() + n);
   return d.toISOString().slice(0, 10);
 };
-
-// ---- PIN ----
-export const getPin = () => localStorage.getItem(KEYS.pin) || "";
-export const setPin = (p) => localStorage.setItem(KEYS.pin, p);
-export const clearPin = () => localStorage.removeItem(KEYS.pin);
 
 // ---- view mode ----
 export const getView = () => localStorage.getItem(KEYS.view) || "child";

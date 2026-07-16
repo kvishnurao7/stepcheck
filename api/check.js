@@ -1,9 +1,8 @@
-import { checkPin, anthropic, parseJson, methodGuard } from "./_lib.js";
+import { anthropic, parseJson, methodGuard } from "./_lib.js";
 import { SYSTEM_CHECK, checkUserText, guardUserText } from "./_prompts.js";
 
 export default async function handler(req, res) {
   if (!methodGuard(req, res)) return;
-  if (!checkPin(req, res)) return;
 
   const { chapter, question = "", typedWork = "", image = null } = req.body || {};
   if (!image && !typedWork.trim()) {
@@ -17,11 +16,12 @@ export default async function handler(req, res) {
     }
     content.push({ type: "text", text: checkUserText(chapter, question, typedWork, !!image) });
 
-    let result = parseJson(await anthropic(content, { system: SYSTEM_CHECK }));
+    // Long multi-step solutions produce long feedback JSON — keep headroom so it never truncates mid-JSON.
+    let result = parseJson(await anthropic(content, { system: SYSTEM_CHECK, maxTokens: 4000 }));
 
-    // Answer-leak guard: second pass. If it fails, keep the first result.
+    // Answer-leak guard: second pass (re-emits the FULL JSON, so it needs the same headroom).
     try {
-      result = parseJson(await anthropic([{ type: "text", text: guardUserText(question, result) }], { maxTokens: 1200 }));
+      result = parseJson(await anthropic([{ type: "text", text: guardUserText(question, result) }], { maxTokens: 4000 }));
     } catch { /* keep first pass */ }
 
     return res.status(200).json(result);

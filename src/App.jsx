@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { S, C } from "./lib/styles.js";
-import { getPin, getView, setView as persistView, loadData, saveData } from "./lib/storage.js";
-import PinGate from "./components/PinGate.jsx";
+import { getView, setView as persistView, loadData, saveData } from "./lib/storage.js";
 import Check from "./components/Check.jsx";
 import Revise from "./components/Revise.jsx";
 import Progress from "./components/Progress.jsx";
@@ -21,8 +20,6 @@ const VIEWS = [
 ];
 
 export default function App() {
-  const [unlocked, setUnlocked] = useState(!!getPin());
-  const [pinMessage, setPinMessage] = useState("");
   const [tab, setTab] = useState("check");
   const [view, setView] = useState(getView());
   const [data, setData] = useState(loadData());
@@ -35,10 +32,6 @@ export default function App() {
 
   // From Revise → "Practice a similar sum": prefill Check and jump to it.
   const practicePrefill = (p) => { setPrefill(p); setTab("check"); };
-
-  if (!unlocked) {
-    return <PinGate message={pinMessage} onUnlocked={() => setUnlocked(true)} />;
-  }
 
   const due = data.mistakes.filter((e) => e.nextReview && e.nextReview <= new Date().toISOString().slice(0, 10)).length;
 
