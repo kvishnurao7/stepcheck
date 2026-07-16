@@ -21,7 +21,16 @@ export default function Check({ view, data, setData, prefill }) {
     const f = e.target.files?.[0];
     if (!f) return;
     setError("");
-    try { setImage(await resizeImage(f)); } catch { setError("Couldn't read that photo."); }
+    try {
+      setImage(await resizeImage(f));
+    } catch {
+      // Most common cause: iPhone HEIC photos, which browsers can't decode.
+      const isHeic = /\.hei[cf]$/i.test(f.name) || /hei[cf]/i.test(f.type);
+      setError(isHeic
+        ? "That photo is in HEIC format, which the browser can't read. Retake it with the camera button here, or set the phone camera to 'Most compatible' (JPEG)."
+        : `Couldn't read that photo (${f.type || "unknown type"}). Try retaking it, or use a JPEG/PNG.`);
+      e.target.value = "";
+    }
   };
 
   const run = async () => {
