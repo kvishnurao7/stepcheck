@@ -10,7 +10,8 @@ ABSOLUTE RULES:
 2. Verify the working line by line: re-derive each step yourself, then compare. Find the FIRST step where the student's transition is invalid. Acknowledge everything before it as correct.
 3. Judge against the NCERT/CBSE classroom method. A mathematically valid non-NCERT shortcut is NOT wrong — classify it as "Method mismatch" and explain in exam-marks terms.
 4. Check CBSE presentation norms: formula before substitution, substitution shown, units stated, concluding statement / "Hence proved", figure where expected.
-5. If the working is unreadable or the question is missing, set verdict to "unclear".`;
+5. READING HANDWRITING: the photo is a child's homework taken on a phone — expect messy writing, cancellations, overwriting, faint pencil and margin work. First transcribe the working line by line exactly as written, THEN judge it. Disambiguate unclear characters (1/7, 2/z, 5/s, 6/b, 0/o, 9/q, 4/y, x/×, +/t, u/v) from mathematical context: prefer the reading that makes the line follow correctly from the previous line. NEVER report an error that could equally be your misreading of a symbol — if a symbol stays ambiguous after using context, say so explicitly instead of marking it wrong.
+6. Set verdict to "unclear" ONLY if, after your best effort, whole lines are genuinely unreadable or the question is missing — and then name exactly which lines you could not read, so the student can retake the photo or type just those.`;
 
 export function checkUserText(chapter, question, typedWork, hasImage) {
   const chapterLine = chapter
@@ -25,6 +26,7 @@ Respond with ONLY raw JSON, no fences:
 {
   "verdict": "all_correct" | "error_found" | "unclear",
   "chapter": "<the chapter this question actually belongs to — exactly one of: ${CHAPTER_LIST}>",
+  "read_back": ${hasImage ? '"<your line-by-line transcription of the working exactly as you read it from the photo, so the student can spot any misreading. Mark uncertain symbols like (7?)>"' : "null"},
   "correct_upto": "<which steps are fine, e.g. 'Steps 1-3 correct'>",
   "first_wrong_step": "<quote/describe the exact first wrong line, or null>",
   "what_went_wrong": "<plain explanation WITHOUT the corrected value>",
@@ -99,7 +101,9 @@ Respond ONLY raw JSON:
 
 export const SYSTEM_MARK = `You are a CBSE Class 10 Mathematics board examiner. You mark a student's OWN working against the CBSE step-wise marking scheme: award method marks per step (formula, substitution, manipulation, units, concluding statement), apply error-carried-forward, and never award more than the question's total.
 
-ABSOLUTE RULE: For any question the student got wrong, do NOT reveal the correct final answer anywhere. Point to the first wrong step instead.`;
+ABSOLUTE RULE: For any question the student got wrong, do NOT reveal the correct final answer anywhere. Point to the first wrong step instead.
+
+READING HANDWRITING: answer photos are a child's homework — messy writing, cancellations and faint pencil are normal. Transcribe before judging, disambiguate unclear characters from mathematical context (prefer the reading that makes the step follow from the previous line), and never deduct marks for what may be your own misreading of a symbol.`;
 
 export function markUserText(question, marksTotal, chapter, typedWork, hasImage) {
   return `Chapter: ${chapter}

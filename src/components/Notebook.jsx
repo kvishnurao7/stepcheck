@@ -12,7 +12,10 @@ function Row({ label, body, accent }) {
 }
 
 // The result panel used by Check and by the Papers per-question feedback.
-// `view` controls density: "child" hides hints behind the ladder; "teacher" shows all hints up front.
+// `view` controls density:
+//   child   — progressive disclosure: hints behind the ladder, self-explain loop.
+//   parent  — word-light: verdict + plain-English diagnosis only; raw maths, hints and drills hidden.
+//   teacher — dense: everything up front (transcription, error type, all hints, the self-explain prompt).
 export default function Notebook({ result, question, view = "child", onSaveMistake, saved }) {
   const [hintLevel, setHintLevel] = useState(view === "teacher" ? 4 : 0);
   const [selfExp, setSelfExp] = useState("");
@@ -20,6 +23,9 @@ export default function Notebook({ result, question, view = "child", onSaveMista
   const [busy, setBusy] = useState(false);
 
   if (!result) return null;
+
+  const isParent = view === "parent";
+  const isTeacher = view === "teacher";
 
   const pen =
     result.verdict === "all_correct" ? { text: "All steps correct ✓", color: C.green }
@@ -53,13 +59,15 @@ export default function Notebook({ result, question, view = "child", onSaveMista
         <div style={{ ...S.pen, color: pen.color }}>{pen.text}</div>
 
         {result.chapter && <Row label="Chapter" body={result.chapter} />}
-        {result.correct_upto && result.verdict !== "unclear" && <Row label="Correct so far" body={result.correct_upto} />}
-        {result.first_wrong_step && <Row label="First wrong step" body={result.first_wrong_step} accent={C.red} />}
+        {result.read_back && !isParent && <Row label="What I read from your photo" body={result.read_back} />}
+        {result.correct_upto && result.verdict !== "unclear" && !isParent && <Row label="Correct so far" body={result.correct_upto} />}
+        {result.first_wrong_step && !isParent && <Row label="First wrong step" body={result.first_wrong_step} accent={C.red} />}
+        {isTeacher && result.error_type && <Row label="Error type" body={result.error_type} accent={C.red} />}
         {result.what_went_wrong && result.verdict === "error_found" && <Row label="What went wrong" body={result.what_went_wrong} />}
         {result.concept_to_revise && <Row label="Concept to revise" body={result.concept_to_revise} />}
         {result.marks_at_risk && <Row label="Marks at risk in the board exam" body={result.marks_at_risk} accent={C.amber} />}
 
-        {result.verdict === "error_found" && hints.length > 0 && (
+        {result.verdict === "error_found" && hints.length > 0 && !isParent && (
           <div style={{ marginBottom: 10 }}>
             <div style={{ ...S.rowLabel, color: C.ink }}>Hints — try to fix it yourself first</div>
             {shownHints.map((h, i) => (
@@ -67,7 +75,7 @@ export default function Notebook({ result, question, view = "child", onSaveMista
                 <b>Hint {i + 1}{i === 3 ? " (worked example, different numbers)" : ""}:</b> {h}
               </div>
             ))}
-            {view !== "teacher" && hintLevel < Math.min(4, hints.length) && (
+            {!isTeacher && hintLevel < Math.min(4, hints.length) && (
               <button onClick={() => setHintLevel(hintLevel + 1)} style={hintBtn}>
                 {hintLevel === 0 ? "I'm stuck — show hint 1" : `Still stuck — show hint ${hintLevel + 1}`}
               </button>
@@ -75,11 +83,11 @@ export default function Notebook({ result, question, view = "child", onSaveMista
           </div>
         )}
 
-        {result.exam_marking_tips?.length > 0 && (
+        {result.exam_marking_tips?.length > 0 && !isParent && (
           <Row label="CBSE marking scheme" body={result.exam_marking_tips.map((t, i) => <div key={i} style={{ marginBottom: 4 }}>• {t}</div>)} />
         )}
 
-        {result.verdict === "error_found" && result.self_explanation_prompt && view !== "parent" && (
+        {result.verdict === "error_found" && result.self_explanation_prompt && !isParent && (
           <div style={{ marginBottom: 10 }}>
             <div style={{ ...S.rowLabel, color: C.green }}>Explain it back (this is where it sticks)</div>
             <div style={{ ...S.rowBody, marginBottom: 6 }}>{result.self_explanation_prompt}</div>
