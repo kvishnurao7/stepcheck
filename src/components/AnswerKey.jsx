@@ -34,7 +34,9 @@ function renderMarkdown(md) {
 }
 
 // The one deliberately answer-revealing UI. Only mount this for parent/teacher.
-export default function AnswerKey({ question, chapter, marksTotal, view }) {
+// `scheme` (optional) is that question's official CBSE marking-scheme text; when
+// present the worked answer is grounded in the real key, not re-derived.
+export default function AnswerKey({ question, chapter, marksTotal, view, scheme }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [solution, setSolution] = useState(null);
@@ -48,7 +50,7 @@ export default function AnswerKey({ question, chapter, marksTotal, view }) {
     if (solution || busy) return;
     setBusy(true); setErr("");
     try {
-      const r = await api.solve({ question, chapter, marksTotal });
+      const r = await api.solve({ question, chapter, marksTotal, scheme });
       setSolution(r.solution);
     } catch {
       setErr("Couldn't fetch the worked solution just now — try again.");
@@ -59,12 +61,13 @@ export default function AnswerKey({ question, chapter, marksTotal, view }) {
     <div style={{ marginTop: 8 }}>
       {!open ? (
         <button onClick={reveal} style={{ ...S.ghostBtn, fontSize: 12.5 }}>
-          🔑 Reveal worked answer (parent/teacher)
+          🔑 Reveal worked answer (parent/teacher){scheme ? " · official scheme" : ""}
         </button>
       ) : (
         <div style={{ background: "#FBF7ED", border: `1.5px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", fontSize: 13 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, marginBottom: 6, letterSpacing: 0.3 }}>
-            ANSWER KEY — not shown to your child
+          <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, marginBottom: 6, letterSpacing: 0.3, display: "flex", justifyContent: "space-between", gap: 8 }}>
+            <span>ANSWER KEY — not shown to your child</span>
+            {scheme && <span style={{ color: C.green }}>✓ OFFICIAL CBSE SCHEME</span>}
           </div>
           {busy && <div style={{ color: C.muted }}>Working out the full solution…</div>}
           {err && <div style={S.errorBox}>{err}</div>}

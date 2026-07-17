@@ -71,14 +71,36 @@ Respond ONLY raw JSON: {"understood": true|false, "feedback": "<2 sentences: wha
 // parent can cross-check the full worked solution.
 export const SYSTEM_SOLVE = `You are a CBSE Class 10 Mathematics teacher writing the official worked solution for a PARENT or TEACHER to check a child's work against. This is the answer key — you SHOULD give the full method and the final answer. Use the NCERT/CBSE step-wise method exactly as it earns marks in the board exam.`;
 
-export function solveUserText(question, chapter, marksTotal) {
+export function solveUserText(question, chapter, marksTotal, officialScheme) {
+  const schemeBlock = officialScheme
+    ? `\nOFFICIAL CBSE MARKING SCHEME for this question (authoritative — follow its final answer and mark allocation EXACTLY; do not re-derive a different answer; expand its steps into readable working):\n"""\n${officialScheme}\n"""\n`
+    : "";
   return `${chapter ? `Chapter: ${chapter}\n` : ""}${marksTotal ? `Marks: ${marksTotal}\n` : ""}Question: ${question}
-
+${schemeBlock}
 Write the model answer as GitHub-flavoured Markdown, for a parent to read:
-- **Method** — the solution worked step by step, in the CBSE order (formula → substitution → simplification → result), with the final answer stated clearly at the end (this is the answer key, so DO give the final answer).
-- **Where marks are earned** — a short line noting which steps carry the method marks.
+- **Method** — the solution worked step by step, in the CBSE order (formula → substitution → simplification → result), with the final answer stated clearly at the end (this is the answer key, so DO give the final answer).${officialScheme ? " Follow the official scheme above — its answer and mark split are authoritative." : ""}
+- **Where marks are earned** — ${officialScheme ? "give the official mark allocation from the scheme, step by step (e.g. '½ mark for …')." : "a short line noting which steps carry the method marks."}
 - **Common mistakes** — 1–2 slips a student typically makes on this question, so the parent knows what to look for in their child's working.
 Keep it tight and readable. Plain-text maths (use / for division, ^ for powers, √ for roots) — no LaTeX.`;
+}
+
+// Extract the official per-question answer + mark allocation from an uploaded
+// CBSE marking scheme, matching each provided question by CONTENT (not just
+// number), so the answer key/marking can be grounded in the real key.
+export function parseSchemeUserText(questions) {
+  const list = questions.map((q) => `#${q.number} (${q.marks} mark${q.marks > 1 ? "s" : ""}): ${q.text}`).join("\n");
+  return `An official CBSE Class 10 Mathematics MARKING SCHEME is provided above (PDF or text). Below is the list of questions from the student's paper. For EACH question, find its entry in the marking scheme by MATCHING THE CONTENT (the scheme's numbering may differ, and some questions have internal choice / "OR" — pick the alternative whose statement matches). Copy out that question's official answer and step-wise mark allocation.
+
+Questions:
+${list}
+
+Rules:
+- Match by content, not just number. If a question is genuinely NOT present in the scheme, OMIT it (do not guess).
+- Keep each entry faithful to the scheme: the final answer and the mark split exactly as the scheme gives them (e.g. "½ mark for formula, 1 mark for substitution, ½ for answer").
+- For MCQ/very short answers the scheme may give only the answer — that's fine, record it.
+
+Respond ONLY raw JSON, keyed by the paper's question number (as a string):
+{ "scheme": { "1": "<official answer + mark allocation for Q1>", "2": "...", ... }, "matched": <how many questions you matched> }`;
 }
 
 export function variantUserText(entry) {
@@ -124,14 +146,15 @@ ABSOLUTE RULE: For any question the student got wrong, do NOT reveal the correct
 
 READING HANDWRITING: answer photos are a child's homework — messy writing, cancellations and faint pencil are normal. Transcribe before judging, disambiguate unclear characters from mathematical context (prefer the reading that makes the step follow from the previous line), and never deduct marks for what may be your own misreading of a symbol.`;
 
-export function markUserText(question, marksTotal, chapter, typedWork, hasImage) {
+export function markUserText(question, marksTotal, chapter, typedWork, hasImage, officialScheme) {
   return `Chapter: ${chapter}
 Marks available: ${marksTotal}
 Question: ${question}
+${officialScheme ? `OFFICIAL CBSE MARKING SCHEME for this question (authoritative — award marks against THIS allocation, apply error-carried-forward, and treat its final answer as the correct one):\n"""\n${officialScheme}\n"""` : ""}
 ${typedWork ? `Student's typed working:\n${typedWork}` : ""}
 ${hasImage ? "The student's handwritten working is in the attached photo." : ""}
 
-Award marks step by step. Respond ONLY raw JSON:
+Award marks step by step${officialScheme ? ", following the official scheme's mark split above" : ""}. Respond ONLY raw JSON:
 {
   "marks_awarded": <number, 0..${marksTotal}>,
   "marks_total": ${marksTotal},

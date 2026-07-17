@@ -119,7 +119,7 @@ export default function Papers({ data, setData, view }) {
 
   // ===================== ANSWERS (parent/teacher: the whole answer key, no attempt needed) =====================
   if (screen === "answers" && activePaper && view !== "child") {
-    return <AnswerSheet paper={activePaper} view={view} onBack={() => setScreen("library")} />;
+    return <AnswerSheet paper={activePaper} view={view} data={data} setData={setData} onBack={() => setScreen("library")} />;
   }
 
   // ===================== ADD =====================
@@ -208,7 +208,7 @@ function Attempt({ paper, attempt, setAttempt, onFinish, onQuit }) {
     if (!image && !typedWork.trim()) { advance({ type: "written", skipped: true, marks: 0, marks_total: q.marks }); return; }
     setBusy(true); setErr("");
     try {
-      const r = await api.markAnswer({ question: q.text, marksTotal: q.marks, chapter: q.chapter, typedWork: typedWork.trim(), image: image?.base64 || null });
+      const r = await api.markAnswer({ question: q.text, marksTotal: q.marks, chapter: q.chapter, typedWork: typedWork.trim(), image: image?.base64 || null, scheme: (paper.scheme || {})[q.number] });
       setFeedback({ ...r, chapter: q.chapter, question: q.text });
     } catch {
       setErr("Marking didn't go through. Try again, or Skip.");
@@ -417,11 +417,46 @@ function mdToHtml(md) {
 // without anyone attempting it. MCQs show the correct option inline; every
 // question has a "Reveal worked answer" for the full CBSE solution, and the
 // whole key can be downloaded as a print-to-PDF sheet. ----------
-function AnswerSheet({ paper, view, onBack }) {
+function AnswerSheet({ paper, view, data, setData, onBack }) {
   const questions = paper.questions || [];
   const [pdfBusy, setPdfBusy] = useState(false);
   const [pdfMsg, setPdfMsg] = useState("");
+  const [scheme, setScheme] = useState(paper.scheme || null); // { [qnum]: official answer + marks }
+  const [showScheme, setShowScheme] = useState(false);
+  const [schemeBusy, setSchemeBusy] = useState(false);
+  const [schemeText, setSchemeText] = useState("");
+  const [schemeErr, setSchemeErr] = useState("");
   if (view === "child") return null; // belt-and-suspenders: never reachable from child view
+
+  const matched = scheme ? Object.keys(scheme).length : 0;
+
+  const persistScheme = (schemeMap) => {
+    setScheme(schemeMap);
+    if (data && setData) setData({ ...data, papers: data.papers.map((p) => p.id === paper.id ? { ...p, scheme: schemeMap } : p) });
+  };
+
+  const attachScheme = async ({ pdf, rawText }) => {
+    setSchemeBusy(true); setSchemeErr("");
+    try {
+      const r = await api.parseScheme({ pdf, rawText, questions });
+      if (!r.scheme || !Object.keys(r.scheme).length) { setSchemeErr("Couldn't match any questions to that scheme. Check it's the marking scheme for THIS paper."); return; }
+      persistScheme(r.scheme);
+      setShowScheme(false); setSchemeText("");
+    } catch {
+      setSchemeErr("Couldn't read that marking scheme. Try a clearer PDF (under ~4 MB) or paste the text.");
+    } finally { setSchemeBusy(false); }
+  };
+
+  const onSchemePdf = async (e) => {
+    const f = e.target.files?.[0]; if (!f) return;
+    if (f.type !== "application/pdf") { setSchemeErr("Please choose a PDF (or paste the text)."); e.target.value = ""; return; }
+    if (f.size > 4.3 * 1024 * 1024) { setSchemeErr("That PDF is over ~4 MB — compress it or paste the text."); e.target.value = ""; return; }
+    try {
+      const b64 = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(",")[1]); r.onerror = () => rej(new Error("read")); r.readAsDataURL(f); });
+      await attachScheme({ pdf: b64 });
+    } catch { setSchemeErr("Couldn't read that file."); }
+    finally { e.target.value = ""; }
+  };
 
   // Build a printable answer key: solve every question (batched), assemble a
   // clean HTML sheet, and print it via a hidden iframe ("Save as PDF" in the
@@ -435,7 +470,7 @@ function AnswerSheet({ paper, view, onBack }) {
     const worker = async (i) => {
       const q = questions[i];
       try {
-        const r = await api.solve({ question: q.text, chapter: q.chapter, marksTotal: q.marks });
+        const r = await api.solve({ question: q.text, chapter: q.chapter, marksTotal: q.marks, scheme: (scheme || {})[q.number] });
         solutions[i] = r.solution || "";
       } catch { solutions[i] = "_(couldn't generate this one — try again)_"; }
       done++;
@@ -518,6 +553,34 @@ function AnswerSheet({ paper, view, onBack }) {
       <div style={{ fontSize: 12.5, color: C.muted, marginBottom: 10, lineHeight: 1.5 }}>
         Full worked answers for you to check against — this screen is only in Parent/Teacher view; your child never sees it.
       </div>
+      {/* Ground the answers in the OFFICIAL CBSE marking scheme (optional). */}
+      <div style={{ background: matched ? "#EAF5EE" : "#EDF2FB", border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", marginBottom: 10 }}>
+        {matched ? (
+          <div style={{ fontSize: 12.5, color: C.green, lineHeight: 1.5 }}>
+            <b>✓ Official CBSE marking scheme attached</b> — matched {matched} of {questions.length} question{questions.length > 1 ? "s" : ""}. Those answers follow the real key and mark split; the rest fall back to the AI method.
+            <button onClick={() => setShowScheme((v) => !v)} style={{ ...S.ghostBtn, fontSize: 11.5, marginLeft: 8, padding: "3px 8px" }}>Replace</button>
+          </div>
+        ) : (
+          <div style={{ fontSize: 12.5, color: C.ink, lineHeight: 1.5 }}>
+            <b>Optional:</b> attach the <b>official CBSE marking scheme</b> for this paper and the answers/marks will follow the real key exactly, not the AI's own derivation.
+            <button onClick={() => setShowScheme((v) => !v)} style={{ ...S.ghostBtn, fontSize: 11.5, marginLeft: 8, padding: "3px 8px" }}>{showScheme ? "Close" : "Attach scheme"}</button>
+          </div>
+        )}
+        {showScheme && (
+          <div style={{ marginTop: 10 }}>
+            <label style={{ ...S.label, marginTop: 0 }}>Marking scheme (PDF)</label>
+            <input type="file" accept="application/pdf" onChange={onSchemePdf} disabled={schemeBusy} style={{ width: "100%", fontSize: 12.5 }} />
+            <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "10px 0" }}>
+              <div style={{ flex: 1, height: 1, background: C.border }} /><span style={{ fontSize: 11, color: C.muted }}>or paste text</span><div style={{ flex: 1, height: 1, background: C.border }} />
+            </div>
+            <textarea value={schemeText} onChange={(e) => setSchemeText(e.target.value)} rows={4} style={{ ...S.textarea, fontSize: 12.5 }} placeholder="Paste the marking scheme text…" disabled={schemeBusy} />
+            <button onClick={() => attachScheme({ rawText: schemeText })} disabled={schemeBusy || schemeText.trim().length < 40} style={{ ...S.ghostBtn, fontSize: 12, marginTop: 6, opacity: (schemeBusy || schemeText.trim().length < 40) ? 0.6 : 1 }}>Use pasted text</button>
+          </div>
+        )}
+        {schemeBusy && <div style={{ fontSize: 12, color: C.muted, marginTop: 8 }}>Reading the scheme and matching it to this paper's questions…</div>}
+        {schemeErr && <div style={{ ...S.errorBox, marginTop: 8 }}>{schemeErr}</div>}
+      </div>
+
       <button onClick={downloadPdf} disabled={pdfBusy} style={{ ...S.primaryBtn, opacity: pdfBusy ? 0.6 : 1, marginBottom: 6 }}>
         {pdfBusy ? (pdfMsg || "Preparing…") : "⬇ Download answer key (PDF)"}
       </button>
@@ -537,7 +600,7 @@ function AnswerSheet({ paper, view, onBack }) {
               {q.answer_index == null && <div style={{ color: C.amber }}>Key not determined — use the worked answer below.</div>}
             </div>
           )}
-          <AnswerKey question={q.text} chapter={q.chapter} marksTotal={q.marks} view={view} />
+          <AnswerKey question={q.text} chapter={q.chapter} marksTotal={q.marks} view={view} scheme={scheme?.[q.number]} />
         </div>
       ))}
       <button onClick={onBack} style={{ ...S.ghostBtn, marginTop: 10, width: "100%" }}>Back to papers</button>

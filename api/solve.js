@@ -8,12 +8,12 @@ import { SYSTEM_SOLVE, solveUserText } from "./_prompts.js";
 export default async function handler(req, res) {
   if (!methodGuard(req, res)) return;
 
-  const { question = "", chapter = "", marksTotal = null } = req.body || {};
+  const { question = "", chapter = "", marksTotal = null, scheme = null } = req.body || {};
   if (!question.trim()) return res.status(400).json({ error: "No question to solve." });
 
   try {
     const solution = await anthropic(
-      [{ type: "text", text: solveUserText(question, chapter, marksTotal) }],
+      [{ type: "text", text: solveUserText(question, chapter, marksTotal, scheme) }],
       { system: SYSTEM_SOLVE, maxTokens: 8000, effort: "low" }
     );
     return res.status(200).json({ solution });
