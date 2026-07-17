@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { S, C } from "../lib/styles.js";
 import { api } from "../lib/api.js";
 import { resizeImage } from "../lib/image.js";
@@ -12,6 +12,13 @@ export default function Papers({ data, setData, view }) {
   const [screen, setScreen] = useState("library"); // library | add | attempt | report
   const [activePaper, setActivePaper] = useState(null);
   const [attempt, setAttempt] = useState(null); // { paperId, idx, answers:{qnum: {marks, breakdown, mine?}}, selfMark }
+
+  // The add/answers screens are parent/teacher-only. If the view switches to
+  // child while on one of them, bounce back to the library so the child never
+  // lands on a blank (answer-revealing) screen.
+  useEffect(() => {
+    if (view === "child" && (screen === "answers" || screen === "add")) setScreen("library");
+  }, [view, screen]);
 
   // ---------- Add paper ----------
   const [raw, setRaw] = useState("");
@@ -45,26 +52,38 @@ export default function Papers({ data, setData, view }) {
     setScreen("report");
   };
 
+  const deletePaper = (p) => {
+    if (!confirm(`Delete "${p.title}" and its attempts? This can't be undone.`)) return;
+    setData({ ...data, papers: data.papers.filter((x) => x.id !== p.id),
+      attempts: data.attempts.filter((a) => a.paperId !== p.id) });
+  };
+
   // ===================== LIBRARY =====================
   if (screen === "library") {
+    const isChild = view === "child"; // grown-ups (parent/teacher) add papers and see answers; the child attempts.
     return (
       <main style={S.main}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <h2 style={S.h2}>Papers</h2>
-          {view !== "parent" && <button onClick={() => setScreen("add")} style={S.ghostBtn}>+ Add paper</button>}
+          {!isChild && <button onClick={() => setScreen("add")} style={S.ghostBtn}>+ Add paper</button>}
         </div>
 
         {data.papers.length === 0 ? (
-          <div style={S.empty}>No papers yet. {view !== "parent" ? 'Tap "Add paper", paste a full CBSE sample paper, and StepCheck will turn it into a timed attempt.' : "Ask a parent to add a sample paper."}</div>
+          <div style={S.empty}>No papers yet. {!isChild ? 'Tap "Add paper", paste a full CBSE sample paper, and StepCheck reads it, sorts every question, and works out the answer key.' : "Ask a parent to add a sample paper."}</div>
         ) : data.papers.map((p) => {
           const lastAttempt = data.attempts.find((a) => a.paperId === p.id);
           return (
             <div key={p.id} style={S.card}>
-              <div style={{ fontWeight: 700, color: C.ink }}>{p.title}</div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+                <div style={{ fontWeight: 700, color: C.ink }}>{p.title}</div>
+                {!isChild && <button onClick={() => deletePaper(p)} title="Delete paper"
+                  style={{ background: "none", border: "none", color: C.muted, fontSize: 18, lineHeight: 1, cursor: "pointer", padding: "0 2px" }}>×</button>}
+              </div>
               <div style={S.meta}>{p.questions?.length || 0} questions · {p.total_marks} marks</div>
               {lastAttempt && <div style={{ fontSize: 12.5, color: C.green, marginBottom: 6 }}>Last score: {lastAttempt.earned}/{lastAttempt.total}</div>}
-              <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+              <div style={{ display: "flex", gap: 8, marginTop: 6, flexWrap: "wrap" }}>
                 {view !== "parent" && <button onClick={() => startAttempt(p)} style={{ ...S.ghostBtn, fontSize: 12.5 }}>Attempt</button>}
+                {!isChild && <button onClick={() => { setActivePaper(p); setScreen("answers"); }} style={{ ...S.primaryBtn, fontSize: 12.5, width: "auto", padding: "8px 14px" }}>🔑 See answers</button>}
                 {lastAttempt && <button onClick={() => { setActivePaper(p); setAttempt({ paperId: p.id, answers: lastAttempt.answers }); setScreen("report"); }} style={{ ...S.ghostBtn, fontSize: 12.5 }}>View report</button>}
               </div>
             </div>
@@ -72,6 +91,11 @@ export default function Papers({ data, setData, view }) {
         })}
       </main>
     );
+  }
+
+  // ===================== ANSWERS (parent/teacher: the whole answer key, no attempt needed) =====================
+  if (screen === "answers" && activePaper && view !== "child") {
+    return <AnswerSheet paper={activePaper} view={view} onBack={() => setScreen("library")} />;
   }
 
   // ===================== ADD =====================
@@ -322,6 +346,41 @@ function Report({ paper, answers, view, data, setData, onBack }) {
       {view !== "parent" && (
         <button onClick={saveAllMistakes} style={{ ...S.primaryBtn }}>Save all mistakes to error log</button>
       )}
+      <button onClick={onBack} style={{ ...S.ghostBtn, marginTop: 10, width: "100%" }}>Back to papers</button>
+    </main>
+  );
+}
+
+// ---------- Answer sheet (parent/teacher): the full answer key for a paper,
+// without anyone attempting it. MCQs show the correct option inline; every
+// question has a "Reveal worked answer" for the full CBSE solution. ----------
+function AnswerSheet({ paper, view, onBack }) {
+  const questions = paper.questions || [];
+  if (view === "child") return null; // belt-and-suspenders: never reachable from child view
+
+  return (
+    <main style={S.main}>
+      <h2 style={S.h2}>Answer key — {paper.title}</h2>
+      <div style={{ fontSize: 12.5, color: C.muted, marginBottom: 12, lineHeight: 1.5 }}>
+        Full worked answers for you to check against — this screen is only in Parent/Teacher view; your child never sees it.
+      </div>
+      {questions.map((q) => (
+        <div key={q.number} style={S.card}>
+          <div style={{ fontWeight: 700, color: C.ink }}>Q{q.number} · Section {q.section} · {q.chapter} · {q.marks} mark{q.marks > 1 ? "s" : ""}</div>
+          <div style={{ fontSize: 13.5, lineHeight: 1.5, marginTop: 4 }}>{q.text}</div>
+          {q.type === "mcq" && (q.mcq_options || []).length > 0 && (
+            <div style={{ fontSize: 12.5, marginTop: 6 }}>
+              {q.mcq_options.map((opt, i) => (
+                <div key={i} style={{ color: i === q.answer_index ? C.green : C.muted, fontWeight: i === q.answer_index ? 700 : 400 }}>
+                  ({String.fromCharCode(97 + i)}) {opt}{i === q.answer_index ? "  ✓ correct" : ""}
+                </div>
+              ))}
+              {q.answer_index == null && <div style={{ color: C.amber }}>Key not determined — use the worked answer below.</div>}
+            </div>
+          )}
+          <AnswerKey question={q.text} chapter={q.chapter} marksTotal={q.marks} view={view} />
+        </div>
+      ))}
       <button onClick={onBack} style={{ ...S.ghostBtn, marginTop: 10, width: "100%" }}>Back to papers</button>
     </main>
   );
