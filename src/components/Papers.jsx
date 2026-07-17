@@ -37,6 +37,30 @@ export default function Papers({ data, setData, view }) {
     } finally { setAddBusy(false); }
   };
 
+  // Upload a question paper as a PDF — the server reads it directly (works for
+  // scanned papers too), builds the questions + the CBSE answer key.
+  const addPaperFromPdf = async (e) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    if (f.type !== "application/pdf") { setAddErr("Please choose a PDF file (or paste the text instead)."); e.target.value = ""; return; }
+    if (f.size > 4.3 * 1024 * 1024) { setAddErr("That PDF is over ~4 MB — try a smaller/compressed file, or paste the text instead."); e.target.value = ""; return; }
+    setAddBusy(true); setAddErr("");
+    try {
+      const b64 = await new Promise((res, rej) => {
+        const r = new FileReader();
+        r.onload = () => res(String(r.result).split(",")[1]);
+        r.onerror = () => rej(new Error("read failed"));
+        r.readAsDataURL(f);
+      });
+      const parsed = await api.parsePaper({ pdf: b64 });
+      const paper = { id: Date.now(), ...parsed };
+      setData({ ...data, papers: [paper, ...data.papers] });
+      setScreen("library");
+    } catch (err) {
+      setAddErr("Couldn't read that PDF. Make sure it's a clear question-paper PDF under ~4 MB, or paste the text instead.");
+    } finally { setAddBusy(false); e.target.value = ""; }
+  };
+
   // ---------- Attempt ----------
   const startAttempt = (paper) => {
     setActivePaper(paper);
@@ -103,15 +127,29 @@ export default function Papers({ data, setData, view }) {
     return (
       <main style={S.main}>
         <h2 style={S.h2}>Add a paper</h2>
-        <div style={{ fontSize: 13, color: C.muted, marginBottom: 8, lineHeight: 1.5 }}>
-          Paste the full text of a CBSE Class 10 maths paper. StepCheck sorts every question by section, marks and chapter.
+        <div style={{ fontSize: 13, color: C.muted, marginBottom: 10, lineHeight: 1.5 }}>
+          StepCheck reads the paper, sorts every question by section, marks and chapter, and works out the CBSE answer key.
         </div>
-        <textarea value={raw} onChange={(e) => setRaw(e.target.value)} rows={10} style={S.textarea} placeholder="Paste the whole question paper here…" />
+
+        {/* Option 1 — upload a PDF */}
+        <label style={S.label}>Upload the question paper (PDF)</label>
+        <input type="file" accept="application/pdf" onChange={addPaperFromPdf} disabled={addBusy} style={{ width: "100%", fontSize: 13 }} />
+        <div style={{ fontSize: 12, color: C.muted, margin: "4px 0 2px" }}>A clear PDF, under ~4 MB. Scanned papers work too.</div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "16px 0" }}>
+          <div style={{ flex: 1, height: 1, background: C.border }} />
+          <span style={{ fontSize: 12, color: C.muted }}>or paste the text</span>
+          <div style={{ flex: 1, height: 1, background: C.border }} />
+        </div>
+
+        {/* Option 2 — paste text */}
+        <textarea value={raw} onChange={(e) => setRaw(e.target.value)} rows={8} style={S.textarea} placeholder="Paste the whole question paper here…" disabled={addBusy} />
         {addErr && <div style={S.errorBox}>{addErr}</div>}
-        <button onClick={addPaper} disabled={addBusy || raw.trim().length < 40} style={{ ...S.primaryBtn, opacity: addBusy ? 0.6 : 1 }}>
+        <button onClick={addPaper} disabled={addBusy || raw.trim().length < 40} style={{ ...S.primaryBtn, opacity: (addBusy || raw.trim().length < 40) ? 0.6 : 1 }}>
           {addBusy ? "Reading the paper…" : "Add this paper"}
         </button>
-        <button onClick={() => setScreen("library")} style={{ ...S.ghostBtn, marginTop: 10, width: "100%" }}>Cancel</button>
+        {addBusy && <div style={{ fontSize: 12, color: C.muted, marginTop: 8 }}>Reading the paper and building the answer key — this can take a minute for a full paper.</div>}
+        <button onClick={() => setScreen("library")} disabled={addBusy} style={{ ...S.ghostBtn, marginTop: 10, width: "100%" }}>Cancel</button>
       </main>
     );
   }
@@ -359,9 +397,10 @@ function mdToHtml(md) {
   for (const line of (md || "").split("\n")) {
     const t = line.trim();
     if (!t) { if (inList) { out.push("</ul>"); inList = false; } continue; }
-    if (t.startsWith("## ")) {
+    const h = t.match(/^#{1,3}\s+(.*)$/);
+    if (h) {
       if (inList) { out.push("</ul>"); inList = false; }
-      out.push(`<h4>${esc(t.slice(3))}</h4>`);
+      out.push(`<h4>${esc(h[1].replace(/\*\*/g, ""))}</h4>`);
     } else if (/^[-*•]\s+/.test(t)) {
       if (!inList) { out.push("<ul>"); inList = true; }
       out.push(`<li>${esc(t.replace(/^[-*•]\s+/, "")).replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")}</li>`);
@@ -408,25 +447,54 @@ function AnswerSheet({ paper, view, onBack }) {
       while (idx.length) { const i = idx.shift(); if (i !== undefined) await worker(i); }
     }));
 
+    const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     const body = questions.map((q, i) => {
-      const mcq = (q.type === "mcq" && (q.mcq_options || []).length)
-        ? `<p><strong>Options:</strong> ${q.mcq_options.map((o, k) => `${String.fromCharCode(97 + k)}) ${o}${k === q.answer_index ? " ✓" : ""}`).join(" &nbsp; ")}</p>`
+      const opts = (q.type === "mcq" && (q.mcq_options || []).length)
+        ? `<div class="opts">${q.mcq_options.map((o, k) =>
+            `<span class="opt ${k === q.answer_index ? "correct" : ""}">(${String.fromCharCode(97 + k)}) ${esc(o)}${k === q.answer_index ? " ✓" : ""}</span>`).join("")}</div>`
         : "";
-      return `<section><div class="qh">Q${q.number} · Section ${q.section} · ${q.chapter} · ${q.marks} mark${q.marks > 1 ? "s" : ""}</div>
-        <div class="qt">${q.text.replace(/</g, "&lt;")}</div>${mcq}<div class="ans">${mdToHtml(solutions[i])}</div></section>`;
+      return `<section>
+        <div class="qh">Q${q.number} &nbsp;·&nbsp; Section ${q.section} &nbsp;·&nbsp; ${esc(q.chapter)} &nbsp;·&nbsp; ${q.marks} mark${q.marks > 1 ? "s" : ""}</div>
+        <div class="qt">${esc(q.text)}</div>${opts}
+        <div class="ans">${mdToHtml(solutions[i])}</div>
+      </section>`;
     }).join("");
 
-    const html = `<!doctype html><html><head><meta charset="utf-8"><title>${paper.title} — Answer key</title>
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>${esc(paper.title)} — Answer key</title>
       <style>
-        body{font-family:system-ui,Arial,sans-serif;color:#1a1a1a;max-width:800px;margin:0 auto;padding:32px;line-height:1.5}
-        h1{font-size:20px;color:#1B3A8C;margin-bottom:2px} .sub{color:#666;font-size:12px;margin-bottom:20px}
-        section{border-top:1px solid #ddd;padding:12px 0;break-inside:avoid}
-        .qh{font-size:12px;font-weight:700;color:#1B3A8C} .qt{margin:4px 0 8px} .ans{font-size:14px}
-        h4{margin:10px 0 4px;font-size:13px;color:#1B3A8C} p{margin:4px 0} ul{margin:4px 0 4px 18px} li{margin:2px 0}
+        @page { margin: 14mm; }
+        html, body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        body { font-family: 'Segoe UI', system-ui, -apple-system, Arial, sans-serif; color: #232830;
+               background: #F2EFE7; margin: 0; padding: 0; font-size: 16px; line-height: 1.65; }
+        .wrap { max-width: 780px; margin: 0 auto; padding: 26px 22px 44px; }
+        .head { background: #1B3A8C; color: #fff; border-radius: 14px; padding: 22px 26px; margin-bottom: 24px; }
+        .brand { font-weight: 800; font-size: 13px; letter-spacing: 2px; text-transform: uppercase; opacity: .92; margin-bottom: 8px; }
+        .brand .r { color: #F0A99A; }
+        .head h1 { margin: 0; font-size: 25px; line-height: 1.25; }
+        .head .sub { opacity: .85; font-size: 13.5px; margin-top: 8px; }
+        section { background: #fff; border: 1px solid #E7E1CF; border-radius: 14px; padding: 20px 22px;
+                  margin-bottom: 18px; box-shadow: 0 1px 3px rgba(20,30,60,.05); break-inside: avoid; page-break-inside: avoid; }
+        .qh { font-size: 12.5px; font-weight: 700; color: #1B3A8C; text-transform: uppercase; letter-spacing: .5px; }
+        .qt { font-size: 18px; font-weight: 600; color: #1a1a1a; margin: 8px 0 12px; }
+        .opts { margin: 0 0 12px; }
+        .opt { display: inline-block; font-size: 15.5px; margin: 0 14px 6px 0; color: #55606f; }
+        .opt.correct { color: #1B7A3D; font-weight: 700; }
+        .ans { font-size: 16px; }
+        .ans h4 { color: #C0392B; font-size: 15.5px; margin: 16px 0 6px; padding-bottom: 3px; border-bottom: 2px solid #F1E4E0; }
+        .ans p { margin: 6px 0; }
+        .ans ul { margin: 6px 0 6px 22px; } .ans li { margin: 4px 0; }
+        .ans strong { color: #1B3A8C; }
+        .foot { text-align: center; color: #8a8574; font-size: 11.5px; margin-top: 26px; }
       </style></head>
-      <body><h1>${paper.title} — Answer key</h1>
-      <div class="sub">CBSE Class 10 Mathematics · full worked solutions · for parent/teacher correction</div>
-      ${body}</body></html>`;
+      <body><div class="wrap">
+        <div class="head">
+          <div class="brand">Step<span class="r">Check</span> &nbsp;·&nbsp; Answer key</div>
+          <h1>${esc(paper.title)}</h1>
+          <div class="sub">CBSE Class 10 Mathematics · full step-by-step worked solutions · for parent/teacher correction</div>
+        </div>
+        ${body}
+        <div class="foot">Worked to the NCERT / CBSE step-wise method. A study aid — please use your own judgement as the final check.</div>
+      </div></body></html>`;
 
     // Print via a hidden same-origin iframe — no pop-up window, so nothing to block.
     const iframe = document.createElement("iframe");
