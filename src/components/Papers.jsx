@@ -3,6 +3,7 @@ import { S, C } from "../lib/styles.js";
 import { api } from "../lib/api.js";
 import { resizeImage } from "../lib/image.js";
 import { todayStr, addDays, REVIEW_GAPS } from "../lib/storage.js";
+import AnswerKey from "./AnswerKey.jsx";
 
 // Papers feature. Three screens: library → attempt → report.
 // View modes: child (attempt + progressive marking), parent (report only, word-light),
@@ -286,28 +287,26 @@ function Report({ paper, answers, view, data, setData, onBack }) {
         </div>
       )}
 
-      {/* Per-question list: parents get marks only; child/teacher get the detail. */}
-      {view !== "parent" && (
-        <>
-          <h2 style={{ ...S.h2, marginTop: 18 }}>Question by question</h2>
-          {questions.map((q) => {
-            const a = answers[q.number] || {};
-            const got = a.marks ?? 0;
-            return (
-              <div key={q.number} style={{ ...S.card }}>
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span style={{ fontWeight: 700, color: C.ink }}>Q{q.number} · {q.chapter}</span>
-                  <span style={S.chip(got >= q.marks ? C.green : got > 0 ? C.amber : C.red)}>{got}/{q.marks}</span>
-                </div>
-                {view === "teacher" && (a.breakdown || []).map((b, i) => (
-                  <div key={i} style={{ fontSize: 12.5, marginTop: 4 }}>{b.awarded}/{b.possible} — {b.step}{b.comment ? ` (${b.comment})` : ""}</div>
-                ))}
-                {a.first_wrong_step && <div style={{ fontSize: 12.5, color: C.red, marginTop: 4 }}>First wrong step: {a.first_wrong_step}</div>}
-              </div>
-            );
-          })}
-        </>
-      )}
+      {/* Per-question list. All three views now get it; parents/teachers also
+          get the deliberately-revealing worked answer key per question. */}
+      <h2 style={{ ...S.h2, marginTop: 18 }}>Question by question</h2>
+      {questions.map((q) => {
+        const a = answers[q.number] || {};
+        const got = a.marks ?? 0;
+        return (
+          <div key={q.number} style={{ ...S.card }}>
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <span style={{ fontWeight: 700, color: C.ink }}>Q{q.number} · {q.chapter}</span>
+              <span style={S.chip(got >= q.marks ? C.green : got > 0 ? C.amber : C.red)}>{got}/{q.marks}</span>
+            </div>
+            {view === "teacher" && (a.breakdown || []).map((b, i) => (
+              <div key={i} style={{ fontSize: 12.5, marginTop: 4 }}>{b.awarded}/{b.possible} — {b.step}{b.comment ? ` (${b.comment})` : ""}</div>
+            ))}
+            {a.first_wrong_step && view !== "parent" && <div style={{ fontSize: 12.5, color: C.red, marginTop: 4 }}>First wrong step: {a.first_wrong_step}</div>}
+            <AnswerKey question={q.text} chapter={q.chapter} marksTotal={q.marks} view={view} />
+          </div>
+        );
+      })}
 
       {view !== "parent" && (
         <button onClick={saveAllMistakes} style={{ ...S.primaryBtn }}>Save all mistakes to error log</button>

@@ -65,6 +65,22 @@ Judge whether they truly understand the concept. NEVER reveal the final answer t
 Respond ONLY raw JSON: {"understood": true|false, "feedback": "<2 sentences: what they got right, and what is still fuzzy, if anything>"}`;
 }
 
+// PARENT / TEACHER ANSWER KEY — the one deliberately answer-revealing surface.
+// This output is shown ONLY in Parent/Teacher view (never to the child) and is
+// NOT routed through guardUserText. Keep it that way: the whole point is that a
+// parent can cross-check the full worked solution.
+export const SYSTEM_SOLVE = `You are a CBSE Class 10 Mathematics teacher writing the official worked solution for a PARENT or TEACHER to check a child's work against. This is the answer key — you SHOULD give the full method and the final answer. Use the NCERT/CBSE step-wise method exactly as it earns marks in the board exam.`;
+
+export function solveUserText(question, chapter, marksTotal) {
+  return `${chapter ? `Chapter: ${chapter}\n` : ""}${marksTotal ? `Marks: ${marksTotal}\n` : ""}Question: ${question}
+
+Write the model answer as GitHub-flavoured Markdown, for a parent to read:
+- **Method** — the solution worked step by step, in the CBSE order (formula → substitution → simplification → result), with the final answer stated clearly at the end (this is the answer key, so DO give the final answer).
+- **Where marks are earned** — a short line noting which steps carry the method marks.
+- **Common mistakes** — 1–2 slips a student typically makes on this question, so the parent knows what to look for in their child's working.
+Keep it tight and readable. Plain-text maths (use / for division, ^ for powers, √ for roots) — no LaTeX.`;
+}
+
 export function variantUserText(entry) {
   return `Generate ONE new CBSE Class 10 practice question testing the same concept the student previously got wrong.
 Chapter: ${entry.chapter}

@@ -5,9 +5,11 @@ StepCheck is a CBSE Class 10 (India) mathematics **step-verifier**. A student ph
 This file tells you (Claude Code) how the project fits together so you can extend it safely.
 
 ## The one rule that must never break
-**The final answer to a student's question is never revealed** — not in feedback, not in a hint, not in paper marking. Two safeguards enforce this:
-1. Every AI prompt (`api/_prompts.js`) states the no-reveal rule explicitly.
-2. `api/check.js` and `api/mark-answer.js` run a **second "answer-leak guard" pass** (`guardUserText`) that rewrites any field that leaked the answer. If you add a new AI endpoint that produces student-facing feedback, route it through the same guard.
+**The final answer is never revealed to the *child*** — not in feedback, not in a hint, not in paper marking. Two safeguards enforce this:
+1. Every child-facing AI prompt (`api/_prompts.js`) states the no-reveal rule explicitly.
+2. `api/check.js` and `api/mark-answer.js` run a **second "answer-leak guard" pass** (`guardUserText`) that rewrites any field that leaked the answer. If you add a new AI endpoint that produces **student-facing** feedback, route it through the same guard.
+
+**Deliberate exception — the parent/teacher answer key.** `api/solve.js` (`SYSTEM_SOLVE` / `solveUserText`) returns the full worked solution *including the final answer*, and is intentionally NOT routed through the guard. It is mounted only via `src/components/AnswerKey.jsx`, which renders nothing unless `view` is `parent` or `teacher`. The child never sees it. Keep this the only answer-revealing surface, and keep it view-gated on the client.
 
 ## Stack
 - **Frontend:** Vite + React 18 (plain JS, no TypeScript). Inline style objects in `src/lib/styles.js` — there is no CSS framework. Aesthetic: Indian school exercise book (paper `#F2EFE7`, ink blue `#1B3A8C`, red pen `#C0392B`, green `#1B7A3D`, "Caveat" handwriting font for verdicts).

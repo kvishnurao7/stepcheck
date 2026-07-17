@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { S, C } from "../lib/styles.js";
 import { api } from "../lib/api.js";
+import AnswerKey from "./AnswerKey.jsx";
 
 function Row({ label, body, accent }) {
   return (
@@ -104,6 +105,9 @@ export default function Notebook({ result, question, view = "child", onSaveMista
         )}
 
         {result.encouragement && <div style={{ fontFamily: "'Caveat', cursive", fontSize: 20, color: C.green, marginTop: 8 }}>{result.encouragement}</div>}
+
+        {/* Parent/teacher only: the full worked answer, on demand. */}
+        <AnswerKey question={question} chapter={result.chapter} view={view} />
 
         {onSaveMistake && result.verdict === "error_found" && (
           <button onClick={onSaveMistake} disabled={saved} style={{ ...S.ghostBtn, marginTop: 12 }}>
