@@ -135,8 +135,11 @@ function Attempt({ paper, attempt, setAttempt, onFinish, onQuit }) {
   };
 
   const submitMcq = () => {
-    // We do not reveal correctness of MCQs here to avoid leaking; parent/teacher can see the key.
-    advance({ type: "mcq", chosen: mcqChoice, marks: 0, marks_total: q.marks, breakdown: [] });
+    // Score against the key stored on the question, but DON'T show correctness
+    // here — the child moves straight on. The mark is revealed only in the
+    // report; the correct option only in the parent/teacher answer key.
+    const marks = (q.answer_index != null && mcqChoice === q.answer_index) ? q.marks : 0;
+    advance({ type: "mcq", chosen: mcqChoice, marks, marks_total: q.marks, breakdown: [] });
   };
 
   const submitWritten = async () => {
@@ -303,6 +306,14 @@ function Report({ paper, answers, view, data, setData, onBack }) {
               <div key={i} style={{ fontSize: 12.5, marginTop: 4 }}>{b.awarded}/{b.possible} — {b.step}{b.comment ? ` (${b.comment})` : ""}</div>
             ))}
             {a.first_wrong_step && view !== "parent" && <div style={{ fontSize: 12.5, color: C.red, marginTop: 4 }}>First wrong step: {a.first_wrong_step}</div>}
+            {/* MCQ key — parent/teacher only. The correct option is an "answer", so the child never sees it. */}
+            {q.type === "mcq" && (view === "parent" || view === "teacher") && q.answer_index != null && (
+              <div style={{ fontSize: 12.5, marginTop: 4 }}>
+                <span style={{ color: C.green }}><b>Correct:</b> ({String.fromCharCode(97 + q.answer_index)}) {q.mcq_options?.[q.answer_index]}</span>
+                {a.chosen != null && a.chosen !== q.answer_index &&
+                  <span style={{ color: C.red, marginLeft: 8 }}>· he chose ({String.fromCharCode(97 + a.chosen)})</span>}
+              </div>
+            )}
             <AnswerKey question={q.text} chapter={q.chapter} marksTotal={q.marks} view={view} />
           </div>
         );

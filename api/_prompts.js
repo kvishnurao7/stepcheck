@@ -94,6 +94,8 @@ Respond ONLY raw JSON: {"question": "<the new question>"}`;
 export function parsePaperUserText(rawText) {
   return `Parse this CBSE Class 10 Mathematics question paper into structured JSON. Assign each question to ONE chapter from this exact list: ${CHAPTER_LIST}.
 
+For every MCQ, SOLVE it yourself using the NCERT/CBSE Class 10 method and record the correct option as a 0-based index into mcq_options ("answer_index": 0 for the first option, 1 for the second, etc.). This is the marking key — be careful and correct; it must match the official CBSE answer. If a question is genuinely ambiguous or you cannot determine it with confidence, set answer_index to null.
+
 Paper text:
 ${rawText}
 
@@ -109,7 +111,8 @@ Respond ONLY raw JSON:
       "chapter": "<one of the list above>",
       "type": "mcq" | "written",
       "text": "<the full question text>",
-      "mcq_options": ["<a>","<b>","<c>","<d>"]  // only for mcq, else omit
+      "mcq_options": ["<a>","<b>","<c>","<d>"],  // only for mcq, else omit
+      "answer_index": <0-based index of the correct option, or null>  // only for mcq, else omit
     }
   ]
 }`;
