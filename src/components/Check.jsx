@@ -43,7 +43,9 @@ export default function Check({ view, data, setData, prefill }) {
       const usedChapter = (r.chapter && CHAPTERS.includes(r.chapter)) ? r.chapter : (chapter || "Unclassified");
       setData({ ...data, checks: [...data.checks, { date: todayStr(), chapter: usedChapter, verdict: r.verdict }] });
     } catch (e) {
-      setError("The check didn't go through. Make sure the photo is clear and try again.");
+      // Show the actual reason — "try again" advice without it was undebuggable.
+      const detail = e?.message && e.message !== "Failed to fetch" ? ` (${e.message})` : " — couldn't reach the server. Refresh the page and try again.";
+      setError(`The check didn't go through${detail}`);
     } finally { setBusy(false); }
   };
 

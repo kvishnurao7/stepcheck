@@ -1,4 +1,4 @@
-import { anthropic, parseJson, methodGuard } from "./_lib.js";
+import { anthropicJson, methodGuard } from "./_lib.js";
 import { SYSTEM_CHECK, checkUserText, guardUserText } from "./_prompts.js";
 
 export default async function handler(req, res) {
@@ -16,12 +16,14 @@ export default async function handler(req, res) {
     }
     content.push({ type: "text", text: checkUserText(chapter, question, typedWork, !!image) });
 
-    // Long multi-step solutions produce long feedback JSON — keep headroom so it never truncates mid-JSON.
-    let result = parseJson(await anthropic(content, { system: SYSTEM_CHECK, maxTokens: 4000 }));
+    // max_tokens covers thinking + answer on sonnet-5: 16000 (the safe
+    // non-streaming ceiling) leaves room for both on dense homework pages.
+    let result = await anthropicJson(content, { system: SYSTEM_CHECK, maxTokens: 16000 });
 
-    // Answer-leak guard: second pass (re-emits the FULL JSON, so it needs the same headroom).
+    // Answer-leak guard: second pass. Mechanical rewrite — thinking off so the
+    // whole budget goes to re-emitting the JSON.
     try {
-      result = parseJson(await anthropic([{ type: "text", text: guardUserText(question, result) }], { maxTokens: 4000 }));
+      result = await anthropicJson([{ type: "text", text: guardUserText(question, result) }], { maxTokens: 8000, thinking: false }, 2);
     } catch { /* keep first pass */ }
 
     return res.status(200).json(result);

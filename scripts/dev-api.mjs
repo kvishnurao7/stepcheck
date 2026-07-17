@@ -4,9 +4,14 @@
 // Usage: node scripts/dev-api.mjs   (reads .env from the project root)
 
 import http from "node:http";
+import dns from "node:dns";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+
+// On some Windows networks IPv6 to api.anthropic.com blackholes while IPv4
+// works — Node's fetch then hangs and fails where curl succeeds.
+dns.setDefaultResultOrder("ipv4first");
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
