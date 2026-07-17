@@ -351,19 +351,110 @@ function Report({ paper, answers, view, data, setData, onBack }) {
   );
 }
 
+// Minimal Markdown → HTML for the printable PDF (## heading, **bold**, bullets).
+function mdToHtml(md) {
+  const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const out = [];
+  let inList = false;
+  for (const line of (md || "").split("\n")) {
+    const t = line.trim();
+    if (!t) { if (inList) { out.push("</ul>"); inList = false; } continue; }
+    if (t.startsWith("## ")) {
+      if (inList) { out.push("</ul>"); inList = false; }
+      out.push(`<h4>${esc(t.slice(3))}</h4>`);
+    } else if (/^[-*•]\s+/.test(t)) {
+      if (!inList) { out.push("<ul>"); inList = true; }
+      out.push(`<li>${esc(t.replace(/^[-*•]\s+/, "")).replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")}</li>`);
+    } else {
+      if (inList) { out.push("</ul>"); inList = false; }
+      out.push(`<p>${esc(t).replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")}</p>`);
+    }
+  }
+  if (inList) out.push("</ul>");
+  return out.join("");
+}
+
 // ---------- Answer sheet (parent/teacher): the full answer key for a paper,
 // without anyone attempting it. MCQs show the correct option inline; every
-// question has a "Reveal worked answer" for the full CBSE solution. ----------
+// question has a "Reveal worked answer" for the full CBSE solution, and the
+// whole key can be downloaded as a print-to-PDF sheet. ----------
 function AnswerSheet({ paper, view, onBack }) {
   const questions = paper.questions || [];
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const [pdfMsg, setPdfMsg] = useState("");
   if (view === "child") return null; // belt-and-suspenders: never reachable from child view
+
+  // Build a printable answer key: solve every question (batched), assemble a
+  // clean HTML sheet, and print it via a hidden iframe ("Save as PDF" in the
+  // dialog). The iframe avoids pop-up blockers that break window.open.
+  const downloadPdf = async () => {
+    if (pdfBusy) return;
+    setPdfBusy(true); setPdfMsg("Starting…");
+
+    const solutions = new Array(questions.length);
+    let done = 0;
+    const worker = async (i) => {
+      const q = questions[i];
+      try {
+        const r = await api.solve({ question: q.text, chapter: q.chapter, marksTotal: q.marks });
+        solutions[i] = r.solution || "";
+      } catch { solutions[i] = "_(couldn't generate this one — try again)_"; }
+      done++;
+      setPdfMsg(`Preparing ${done}/${questions.length}…`);
+    };
+    // Concurrency pool of 4 to be gentle on rate limits.
+    const idx = questions.map((_, i) => i);
+    await Promise.all(Array.from({ length: 4 }, async () => {
+      while (idx.length) { const i = idx.shift(); if (i !== undefined) await worker(i); }
+    }));
+
+    const body = questions.map((q, i) => {
+      const mcq = (q.type === "mcq" && (q.mcq_options || []).length)
+        ? `<p><strong>Options:</strong> ${q.mcq_options.map((o, k) => `${String.fromCharCode(97 + k)}) ${o}${k === q.answer_index ? " ✓" : ""}`).join(" &nbsp; ")}</p>`
+        : "";
+      return `<section><div class="qh">Q${q.number} · Section ${q.section} · ${q.chapter} · ${q.marks} mark${q.marks > 1 ? "s" : ""}</div>
+        <div class="qt">${q.text.replace(/</g, "&lt;")}</div>${mcq}<div class="ans">${mdToHtml(solutions[i])}</div></section>`;
+    }).join("");
+
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>${paper.title} — Answer key</title>
+      <style>
+        body{font-family:system-ui,Arial,sans-serif;color:#1a1a1a;max-width:800px;margin:0 auto;padding:32px;line-height:1.5}
+        h1{font-size:20px;color:#1B3A8C;margin-bottom:2px} .sub{color:#666;font-size:12px;margin-bottom:20px}
+        section{border-top:1px solid #ddd;padding:12px 0;break-inside:avoid}
+        .qh{font-size:12px;font-weight:700;color:#1B3A8C} .qt{margin:4px 0 8px} .ans{font-size:14px}
+        h4{margin:10px 0 4px;font-size:13px;color:#1B3A8C} p{margin:4px 0} ul{margin:4px 0 4px 18px} li{margin:2px 0}
+      </style></head>
+      <body><h1>${paper.title} — Answer key</h1>
+      <div class="sub">CBSE Class 10 Mathematics · full worked solutions · for parent/teacher correction</div>
+      ${body}</body></html>`;
+
+    // Print via a hidden same-origin iframe — no pop-up window, so nothing to block.
+    const iframe = document.createElement("iframe");
+    iframe.setAttribute("aria-hidden", "true");
+    Object.assign(iframe.style, { position: "fixed", right: "0", bottom: "0", width: "0", height: "0", border: "0" });
+    iframe.onload = () => {
+      try { iframe.contentWindow.focus(); iframe.contentWindow.print(); }
+      catch { /* if printing is unavailable the on-screen answers still work */ }
+      setTimeout(() => { try { document.body.removeChild(iframe); } catch {} }, 60000);
+    };
+    document.body.appendChild(iframe);
+    const doc = iframe.contentDocument || iframe.contentWindow.document;
+    doc.open(); doc.write(html); doc.close();
+
+    setPdfBusy(false); setPdfMsg("");
+  };
 
   return (
     <main style={S.main}>
       <h2 style={S.h2}>Answer key — {paper.title}</h2>
-      <div style={{ fontSize: 12.5, color: C.muted, marginBottom: 12, lineHeight: 1.5 }}>
+      <div style={{ fontSize: 12.5, color: C.muted, marginBottom: 10, lineHeight: 1.5 }}>
         Full worked answers for you to check against — this screen is only in Parent/Teacher view; your child never sees it.
       </div>
+      <button onClick={downloadPdf} disabled={pdfBusy} style={{ ...S.primaryBtn, opacity: pdfBusy ? 0.6 : 1, marginBottom: 6 }}>
+        {pdfBusy ? (pdfMsg || "Preparing…") : "⬇ Download answer key (PDF)"}
+      </button>
+      {pdfBusy && <div style={{ fontSize: 12, color: C.muted, marginBottom: 12 }}>Generating every worked solution — this takes a minute for a full paper. Keep this tab open.</div>}
+      {!pdfBusy && pdfMsg && <div style={S.errorBox}>{pdfMsg}</div>}
       {questions.map((q) => (
         <div key={q.number} style={S.card}>
           <div style={{ fontWeight: 700, color: C.ink }}>Q{q.number} · Section {q.section} · {q.chapter} · {q.marks} mark{q.marks > 1 ? "s" : ""}</div>
