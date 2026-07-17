@@ -2,23 +2,32 @@ import { useState } from "react";
 import { S, C } from "../lib/styles.js";
 import { api } from "../lib/api.js";
 
-// Renders a tiny subset of Markdown (**bold**, bullet lines, blank lines) so the
-// worked solution reads cleanly without pulling in a markdown dependency.
+// Inline formatting: **bold** segments.
+function renderInline(text) {
+  return text.split(/(\*\*[^*]+\*\*)/g).map((p, j) =>
+    p.startsWith("**") && p.endsWith("**")
+      ? <b key={j} style={{ color: C.ink }}>{p.slice(2, -2)}</b>
+      : <span key={j}>{p}</span>
+  );
+}
+
+// Renders a tiny subset of Markdown (## / ### headings, **bold**, bullet lines,
+// blank lines) so the worked solution reads cleanly — WITHOUT leaking the raw
+// "##"/"**" markers — and without pulling in a markdown dependency.
 function renderMarkdown(md) {
-  return md.split("\n").map((line, i) => {
+  return (md || "").split("\n").map((line, i) => {
     const t = line.trim();
     if (!t) return <div key={i} style={{ height: 6 }} />;
+    const h = t.match(/^(#{1,3})\s+(.*)$/); // ## Method, ### ...
+    if (h) {
+      return <div key={i} style={{ fontWeight: 700, color: C.ink, fontSize: 14, marginTop: i ? 9 : 0, marginBottom: 2 }}>{renderInline(h[2].replace(/\*\*/g, ""))}</div>;
+    }
     const bullet = /^[-*•]\s+/.test(t);
     const text = bullet ? t.replace(/^[-*•]\s+/, "") : t;
-    const parts = text.split(/(\*\*[^*]+\*\*)/g).map((p, j) =>
-      p.startsWith("**") && p.endsWith("**")
-        ? <b key={j} style={{ color: C.ink }}>{p.slice(2, -2)}</b>
-        : <span key={j}>{p}</span>
-    );
     return (
       <div key={i} style={{ display: "flex", gap: 6, marginBottom: 3, lineHeight: 1.5 }}>
         {bullet && <span style={{ color: C.ink }}>•</span>}
-        <span>{parts}</span>
+        <span>{renderInline(text)}</span>
       </div>
     );
   });
