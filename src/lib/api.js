@@ -17,6 +17,6 @@ export const api = {
   variant: (b) => post("variant", b),
   parsePaper: (b) => post("parse-paper", b),
   markAnswer: (b) => post("mark-answer", b),
-  solve: (b) => post("solve", b), // parent/teacher answer key — reveals the answer, gate to parent/teacher views
+  solve: (b) => post("solve", b), // parent answer key - reveals the answer, gate to parent views
   parseScheme: (b) => post("parse-scheme", b), // extract official CBSE marking scheme per question
 };

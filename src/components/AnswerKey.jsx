@@ -12,8 +12,8 @@ function renderInline(text) {
 }
 
 // Renders a tiny subset of Markdown (## / ### headings, **bold**, bullet lines,
-// blank lines) so the worked solution reads cleanly — WITHOUT leaking the raw
-// "##"/"**" markers — and without pulling in a markdown dependency.
+// blank lines) so the worked solution reads cleanly - WITHOUT leaking the raw
+// "##"/"**" markers - and without pulling in a markdown dependency.
 function renderMarkdown(md) {
   return (md || "").split("\n").map((line, i) => {
     const t = line.trim();
@@ -33,7 +33,7 @@ function renderMarkdown(md) {
   });
 }
 
-// The one deliberately answer-revealing UI. Only mount this for parent/teacher.
+// The one deliberately answer-revealing UI. Only mount this for parent.
 // `scheme` (optional) is that question's official CBSE marking-scheme text; when
 // present the worked answer is grounded in the real key, not re-derived.
 export default function AnswerKey({ question, chapter, marksTotal, view, scheme }) {
@@ -42,7 +42,7 @@ export default function AnswerKey({ question, chapter, marksTotal, view, scheme 
   const [solution, setSolution] = useState(null);
   const [err, setErr] = useState("");
 
-  if (view !== "parent" && view !== "teacher") return null;
+  if (view !== "parent") return null;
   if (!question) return null;
 
   const reveal = async () => {
@@ -53,7 +53,7 @@ export default function AnswerKey({ question, chapter, marksTotal, view, scheme 
       const r = await api.solve({ question, chapter, marksTotal, scheme });
       setSolution(r.solution);
     } catch {
-      setErr("Couldn't fetch the worked solution just now — try again.");
+      setErr("Couldn't fetch the worked solution just now - try again.");
     } finally { setBusy(false); }
   };
 
@@ -61,12 +61,12 @@ export default function AnswerKey({ question, chapter, marksTotal, view, scheme 
     <div style={{ marginTop: 8 }}>
       {!open ? (
         <button onClick={reveal} style={{ ...S.ghostBtn, fontSize: 12.5 }}>
-          🔑 Reveal worked answer (parent/teacher){scheme ? " · official scheme" : ""}
+          🔑 Reveal worked answer (parent){scheme ? " · official scheme" : ""}
         </button>
       ) : (
-        <div style={{ background: "#FBF7ED", border: `1.5px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", fontSize: 13 }}>
+        <div style={{ background: C.amberSoft, border: `1.5px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", fontSize: 13 }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, marginBottom: 6, letterSpacing: 0.3, display: "flex", justifyContent: "space-between", gap: 8 }}>
-            <span>ANSWER KEY — not shown to your child</span>
+            <span>ANSWER KEY - not shown to your child</span>
             {scheme && <span style={{ color: C.green }}>✓ OFFICIAL CBSE SCHEME</span>}
           </div>
           {busy && <div style={{ color: C.muted }}>Working out the full solution…</div>}

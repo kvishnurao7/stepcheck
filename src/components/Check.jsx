@@ -43,8 +43,8 @@ export default function Check({ view, data, setData, prefill }) {
       const usedChapter = (r.chapter && CHAPTERS.includes(r.chapter)) ? r.chapter : (chapter || "Unclassified");
       setData({ ...data, checks: [...data.checks, { date: todayStr(), chapter: usedChapter, verdict: r.verdict }] });
     } catch (e) {
-      // Show the actual reason — "try again" advice without it was undebuggable.
-      const detail = e?.message && e.message !== "Failed to fetch" ? ` (${e.message})` : " — couldn't reach the server. Refresh the page and try again.";
+      // Show the actual reason - "try again" advice without it was undebuggable.
+      const detail = e?.message && e.message !== "Failed to fetch" ? ` (${e.message})` : " - couldn't reach the server. Refresh the page and try again.";
       setError(`The check didn't go through${detail}`);
     } finally { setBusy(false); }
   };
@@ -66,7 +66,7 @@ export default function Check({ view, data, setData, prefill }) {
     <main style={S.main}>
       <label style={S.label}>Chapter</label>
       <select value={chapter} onChange={(e) => setChapter(e.target.value)} style={S.select}>
-        <option value={AUTO}>Auto-detect (mixed paper — any chapter)</option>
+        <option value={AUTO}>Auto-detect (mixed paper - any chapter)</option>
         {CHAPTERS.map((c) => <option key={c}>{c}</option>)}
       </select>
 

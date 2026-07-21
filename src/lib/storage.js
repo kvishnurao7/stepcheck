@@ -16,7 +16,12 @@ export const addDays = (dateStr, n) => {
 };
 
 // ---- view mode ----
-export const getView = () => localStorage.getItem(KEYS.view) || "child";
+// Only "child" and "parent" exist. The old "teacher" mode was removed; anyone
+// still holding it in localStorage falls back to the parent (grown-up) view.
+export const getView = () => {
+  const v = localStorage.getItem(KEYS.view);
+  return v === "parent" || v === "child" ? v : (v === "teacher" ? "parent" : "child");
+};
 export const setView = (v) => localStorage.setItem(KEYS.view, v);
 
 // ---- app data ----

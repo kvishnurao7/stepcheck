@@ -1,5 +1,5 @@
 // Downscale + compress a photo before sending it to the server.
-// 1568px is the longest edge the vision model actually uses — larger is wasted upload.
+// 1568px is the longest edge the vision model actually uses - larger is wasted upload.
 // A mild contrast/brightness lift makes faint pencil strokes survive JPEG compression;
 // colour is kept (red pen / blue ink carry meaning in checked homework).
 export function resizeImage(file, maxDim = 1568) {

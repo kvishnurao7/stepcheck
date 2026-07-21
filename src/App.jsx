@@ -16,7 +16,6 @@ const TABS = [
 const VIEWS = [
   ["child", "Child"],
   ["parent", "Parent"],
-  ["teacher", "Teacher"],
 ];
 
 export default function App() {
@@ -56,10 +55,10 @@ export default function App() {
 
       <footer style={S.footer}>
         Calibrated to the NCERT method and CBSE step-wise marking (method marks + error-carried-forward).
-        When the teacher's method differs from an app's — the teacher's method wins in the board exam.
+        When your teacher's method differs from the app's, your teacher's method wins in the board exam.
       </footer>
 
-      <nav style={S.tabbar}>
+      <nav style={S.tabbar} className="sc-tabbar">
         {TABS.map(([id, label]) => (
           <button key={id} onClick={() => { setTab(id); if (id !== "check") setPrefill(null); }} style={S.tabBtn(tab === id)}>
             {label}{id === "revise" && due > 0 ? ` (${due})` : ""}

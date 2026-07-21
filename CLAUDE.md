@@ -9,10 +9,10 @@ This file tells you (Claude Code) how the project fits together so you can exten
 1. Every child-facing AI prompt (`api/_prompts.js`) states the no-reveal rule explicitly.
 2. `api/check.js` and `api/mark-answer.js` run a **second "answer-leak guard" pass** (`guardUserText`) that rewrites any field that leaked the answer. If you add a new AI endpoint that produces **student-facing** feedback, route it through the same guard.
 
-**Deliberate exception — the parent/teacher answer key.** `api/solve.js` (`SYSTEM_SOLVE` / `solveUserText`) returns the full worked solution *including the final answer*, and is intentionally NOT routed through the guard. It is mounted only via `src/components/AnswerKey.jsx`, which renders nothing unless `view` is `parent` or `teacher`. The child never sees it. Keep this the only answer-revealing surface, and keep it view-gated on the client.
+**Deliberate exception — the parent answer key.** `api/solve.js` (`SYSTEM_SOLVE` / `solveUserText`) returns the full worked solution *including the final answer*, and is intentionally NOT routed through the guard. It is mounted only via `src/components/AnswerKey.jsx`, which renders nothing unless `view` is `parent`. The child never sees it. Keep this the only answer-revealing surface, and keep it view-gated on the client.
 
 ## Stack
-- **Frontend:** Vite + React 18 (plain JS, no TypeScript). Inline style objects in `src/lib/styles.js` — there is no CSS framework. Aesthetic: Indian school exercise book (paper `#F2EFE7`, ink blue `#1B3A8C`, red pen `#C0392B`, green `#1B7A3D`, "Caveat" handwriting font for verdicts).
+- **Frontend:** Vite + React 18 (plain JS, no TypeScript). Design tokens are CSS custom properties in `src/index.css` (light + dark via `prefers-color-scheme`); `src/lib/styles.js` holds inline style objects that reference them as `var(--x)`, so theming is automatic. No CSS framework. Aesthetic: modern, calm study tool - indigo accent `--accent`, semantic red/green for wrong/correct, "Caveat" handwriting font kept for the verdict line. Never hardcode a hex in a component; use a token from `C` in `styles.js`.
 - **Backend:** Vercel serverless functions in `api/*.js` (Node, `export default handler(req,res)`). All Anthropic calls happen here.
 - **Storage:** browser `localStorage` (see `src/lib/storage.js`). v1 is single-device.
 
@@ -30,9 +30,12 @@ api/
   mark-answer.js   per-question CBSE marking for papers + guard
   explain.js       grades the student's self-explanation
   variant.js       generates a fresh practice question
-  parse-paper.js   turns pasted paper text into structured questions
+  parse-paper.js   turns a pasted/PDF paper into structured questions + MCQ answer key
+  parse-scheme.js  matches an official CBSE marking scheme to the paper questions
+  solve.js         PARENT-ONLY worked answer key (deliberately reveals the answer)
 src/
   App.jsx          shell: header + view switch, tab bar, persistence
+  index.css        design tokens (light + dark), focus/active states, reveal animation
   lib/
     api.js         client wrapper for the serverless functions
     storage.js     localStorage: view mode, {checks, mistakes, papers, attempts}
@@ -43,16 +46,18 @@ src/
     Revise.jsx     spaced repetition (day 1,3,7,21) + practice variants
     Progress.jsx   mastery bars, error-leak bars, parent summary
     Papers.jsx     paper library, add/parse, attempt, marking, report card
-    Notebook.jsx   shared marked-notebook result panel (hint ladder, self-explain)
+    Notebook.jsx   shared result panel (verdict rail, hint ladder, self-explain)
+    AnswerKey.jsx  parent-only worked-answer reveal (the one answer-revealing UI)
 public/
   manifest.json, icon-192.png, icon-512.png   (PWA install)
 ```
 
-## View modes (child / parent / teacher)
-Set in the header, stored in `localStorage`, passed as a `view` prop.
-- **child** (default): progressive disclosure — hints revealed one level at a time; full self-explanation loop.
-- **parent**: word-light; hides raw maths and per-question detail, shows scores and plain-English diagnostics.
-- **teacher**: dense; shows all hints/step-breakdowns up front; intended to be print-friendly.
+## View modes (child / parent)
+Set in the header, stored in `localStorage`, passed as a `view` prop. There are
+exactly two. A third "teacher" mode was removed; `getView()` in `storage.js`
+coerces any stored `"teacher"` to `"parent"`.
+- **child** (default): progressive disclosure; hints revealed one level at a time, full self-explanation loop, never sees an answer.
+- **parent**: the grown-up view. Full diagnostics up front (transcription, error type, every hint, step breakdown), adds/deletes papers, and the answer key. The self-explanation drill stays child-only.
 When adding UI, branch on `view` the way the existing components do.
 
 ## Data shapes (localStorage `stepcheck.data.v1`)
@@ -73,4 +78,4 @@ Replace `src/lib/storage.js` reads/writes with calls to a Supabase (or similar) 
 ## Guardrails when editing
 - Keep all Anthropic calls server-side; never move the API key or model call into `src/`.
 - Preserve the answer-leak guard on any student-facing AI output.
-- Keep the exercise-book styling consistent (use tokens in `styles.js`).
+- Keep the visual language consistent: use tokens from `C`/`S` in `styles.js` (which map to CSS variables in `index.css`). Never hardcode a hex in a component - it will break dark mode. Test both light and dark before shipping UI.

@@ -5,15 +5,15 @@ import { resizeImage } from "../lib/image.js";
 import { todayStr, addDays, REVIEW_GAPS } from "../lib/storage.js";
 import AnswerKey from "./AnswerKey.jsx";
 
-// Papers feature. Three screens: library → attempt → report.
-// View modes: child (attempt + progressive marking), parent (report only, word-light),
-// teacher (full breakdown, printable).
+// Papers feature. Screens: library → attempt → report, plus a parent-only answer sheet.
+// View modes: child (attempts papers, never sees answers), parent (adds papers,
+// full answer key, marking detail).
 export default function Papers({ data, setData, view }) {
   const [screen, setScreen] = useState("library"); // library | add | attempt | report
   const [activePaper, setActivePaper] = useState(null);
   const [attempt, setAttempt] = useState(null); // { paperId, idx, answers:{qnum: {marks, breakdown, mine?}}, selfMark }
 
-  // The add/answers screens are parent/teacher-only. If the view switches to
+  // The add/answers screens are parent-only. If the view switches to
   // child while on one of them, bounce back to the library so the child never
   // lands on a blank (answer-revealing) screen.
   useEffect(() => {
@@ -37,13 +37,13 @@ export default function Papers({ data, setData, view }) {
     } finally { setAddBusy(false); }
   };
 
-  // Upload a question paper as a PDF — the server reads it directly (works for
+  // Upload a question paper as a PDF - the server reads it directly (works for
   // scanned papers too), builds the questions + the CBSE answer key.
   const addPaperFromPdf = async (e) => {
     const f = e.target.files?.[0];
     if (!f) return;
     if (f.type !== "application/pdf") { setAddErr("Please choose a PDF file (or paste the text instead)."); e.target.value = ""; return; }
-    if (f.size > 4.3 * 1024 * 1024) { setAddErr("That PDF is over ~4 MB — try a smaller/compressed file, or paste the text instead."); e.target.value = ""; return; }
+    if (f.size > 4.3 * 1024 * 1024) { setAddErr("That PDF is over ~4 MB - try a smaller/compressed file, or paste the text instead."); e.target.value = ""; return; }
     setAddBusy(true); setAddErr("");
     try {
       const b64 = await new Promise((res, rej) => {
@@ -84,7 +84,7 @@ export default function Papers({ data, setData, view }) {
 
   // ===================== LIBRARY =====================
   if (screen === "library") {
-    const isChild = view === "child"; // grown-ups (parent/teacher) add papers and see answers; the child attempts.
+    const isChild = view === "child"; // grown-ups (parent) add papers and see answers; the child attempts.
     return (
       <main style={S.main}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -117,7 +117,7 @@ export default function Papers({ data, setData, view }) {
     );
   }
 
-  // ===================== ANSWERS (parent/teacher: the whole answer key, no attempt needed) =====================
+  // ===================== ANSWERS (parent: the whole answer key, no attempt needed) =====================
   if (screen === "answers" && activePaper && view !== "child") {
     return <AnswerSheet paper={activePaper} view={view} data={data} setData={setData} onBack={() => setScreen("library")} />;
   }
@@ -131,7 +131,7 @@ export default function Papers({ data, setData, view }) {
           StepCheck reads the paper, sorts every question by section, marks and chapter, and works out the CBSE answer key.
         </div>
 
-        {/* Option 1 — upload a PDF */}
+        {/* Option 1 - upload a PDF */}
         <label style={S.label}>Upload the question paper (PDF)</label>
         <input type="file" accept="application/pdf" onChange={addPaperFromPdf} disabled={addBusy} style={{ width: "100%", fontSize: 13 }} />
         <div style={{ fontSize: 12, color: C.muted, margin: "4px 0 2px" }}>A clear PDF, under ~4 MB. Scanned papers work too.</div>
@@ -142,13 +142,13 @@ export default function Papers({ data, setData, view }) {
           <div style={{ flex: 1, height: 1, background: C.border }} />
         </div>
 
-        {/* Option 2 — paste text */}
+        {/* Option 2 - paste text */}
         <textarea value={raw} onChange={(e) => setRaw(e.target.value)} rows={8} style={S.textarea} placeholder="Paste the whole question paper here…" disabled={addBusy} />
         {addErr && <div style={S.errorBox}>{addErr}</div>}
         <button onClick={addPaper} disabled={addBusy || raw.trim().length < 40} style={{ ...S.primaryBtn, opacity: (addBusy || raw.trim().length < 40) ? 0.6 : 1 }}>
           {addBusy ? "Reading the paper…" : "Add this paper"}
         </button>
-        {addBusy && <div style={{ fontSize: 12, color: C.muted, marginTop: 8 }}>Reading the paper and building the answer key — this can take a minute for a full paper.</div>}
+        {addBusy && <div style={{ fontSize: 12, color: C.muted, marginTop: 8 }}>Reading the paper and building the answer key - this can take a minute for a full paper.</div>}
         <button onClick={() => setScreen("library")} disabled={addBusy} style={{ ...S.ghostBtn, marginTop: 10, width: "100%" }}>Cancel</button>
       </main>
     );
@@ -198,8 +198,8 @@ function Attempt({ paper, attempt, setAttempt, onFinish, onQuit }) {
 
   const submitMcq = () => {
     // Score against the key stored on the question, but DON'T show correctness
-    // here — the child moves straight on. The mark is revealed only in the
-    // report; the correct option only in the parent/teacher answer key.
+    // here - the child moves straight on. The mark is revealed only in the
+    // report; the correct option only in the parent answer key.
     const marks = (q.answer_index != null && mcqChoice === q.answer_index) ? q.marks : 0;
     advance({ type: "mcq", chosen: mcqChoice, marks, marks_total: q.marks, breakdown: [] });
   };
@@ -221,7 +221,7 @@ function Attempt({ paper, attempt, setAttempt, onFinish, onQuit }) {
         <div style={{ fontSize: 12, fontWeight: 700, color: C.muted }}>Q{q.number} of {questions.length} · Section {q.section} · {q.marks} mark{q.marks > 1 ? "s" : ""}</div>
         <button onClick={onQuit} style={{ background: "none", border: "none", color: C.muted, fontSize: 12, cursor: "pointer" }}>Quit</button>
       </div>
-      <div style={{ height: 6, background: "#E4E0D4", borderRadius: 4, marginBottom: 12 }}>
+      <div style={{ height: 6, background: C.sunken, borderRadius: 4, marginBottom: 12 }}>
         <div style={{ height: "100%", width: `${((attempt.idx) / questions.length) * 100}%`, background: C.ink, borderRadius: 4 }} />
       </div>
 
@@ -236,7 +236,7 @@ function Attempt({ paper, attempt, setAttempt, onFinish, onQuit }) {
             <button key={i} onClick={() => setMcqChoice(i)}
               style={{ display: "block", width: "100%", textAlign: "left", margin: "6px 0", padding: "11px 12px",
                 borderRadius: 8, border: `1.5px solid ${mcqChoice === i ? C.ink : C.border}`,
-                background: mcqChoice === i ? "#EDF2FB" : "#fff", fontSize: 14, cursor: "pointer" }}>
+                background: mcqChoice === i ? C.inkSoft : C.surface, fontSize: 14, cursor: "pointer" }}>
               {String.fromCharCode(97 + i)}) {opt}
             </button>
           ))}
@@ -271,11 +271,11 @@ function Attempt({ paper, attempt, setAttempt, onFinish, onQuit }) {
                 {(feedback.step_breakdown || []).map((s, i) => (
                   <div key={i} style={{ display: "flex", gap: 8, marginTop: 6, fontSize: 13 }}>
                     <span style={S.chip(s.awarded >= s.possible ? C.green : C.red)}>{s.awarded}/{s.possible}</span>
-                    <span>{s.step}{s.comment ? ` — ${s.comment}` : ""}</span>
+                    <span>{s.step}{s.comment ? ` - ${s.comment}` : ""}</span>
                   </div>
                 ))}
                 {feedback.first_wrong_step && <div style={{ marginTop: 8, fontSize: 13, color: C.red }}><b>First wrong step:</b> {feedback.first_wrong_step}</div>}
-                {feedback.tip && <div style={{ marginTop: 6, fontSize: 12.5, color: C.amber, fontStyle: "italic" }}>TIP — {feedback.tip}</div>}
+                {feedback.tip && <div style={{ marginTop: 6, fontSize: 12.5, color: C.amber, fontStyle: "italic" }}>TIP - {feedback.tip}</div>}
               </div>
               <button onClick={() => advance({ type: "written", marks: feedback.marks_awarded, marks_total: feedback.marks_total,
                 breakdown: feedback.step_breakdown, error_type: feedback.error_type, concept: feedback.concept_to_revise,
@@ -332,7 +332,7 @@ function Report({ paper, answers, view, data, setData, onBack }) {
 
   return (
     <main style={S.main}>
-      <h2 style={S.h2}>Report card — {paper.title}</h2>
+      <h2 style={S.h2}>Report card - {paper.title}</h2>
       <div style={{ textAlign: "center", padding: "10px 0 4px" }}>
         <div style={{ fontFamily: "'Caveat', cursive", fontSize: 46, color: C.ink, lineHeight: 1 }}>{earned}<span style={{ fontSize: 26, color: C.muted }}> / {total}</span></div>
       </div>
@@ -346,13 +346,13 @@ function Report({ paper, answers, view, data, setData, onBack }) {
       ))}
 
       {diagnostics.length > 0 && (
-        <div style={{ background: "#EDF2FB", border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", fontSize: 13, lineHeight: 1.6, marginTop: 12 }}>
+        <div style={{ background: C.inkSoft, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", fontSize: 13, lineHeight: 1.6, marginTop: 12 }}>
           <b>Where the marks went:</b>
           {diagnostics.map(([type, n]) => <div key={type}>• Lost {n} mark{n > 1 ? "s" : ""} to {type.toLowerCase()}.</div>)}
         </div>
       )}
 
-      {/* Per-question list. All three views now get it; parents/teachers also
+      {/* Per-question list. All three views now get it; parents also
           get the deliberately-revealing worked answer key per question. */}
       <h2 style={{ ...S.h2, marginTop: 18 }}>Question by question</h2>
       {questions.map((q) => {
@@ -364,12 +364,12 @@ function Report({ paper, answers, view, data, setData, onBack }) {
               <span style={{ fontWeight: 700, color: C.ink }}>Q{q.number} · {q.chapter}</span>
               <span style={S.chip(got >= q.marks ? C.green : got > 0 ? C.amber : C.red)}>{got}/{q.marks}</span>
             </div>
-            {view === "teacher" && (a.breakdown || []).map((b, i) => (
-              <div key={i} style={{ fontSize: 12.5, marginTop: 4 }}>{b.awarded}/{b.possible} — {b.step}{b.comment ? ` (${b.comment})` : ""}</div>
+            {view === "parent" && (a.breakdown || []).map((b, i) => (
+              <div key={i} style={{ fontSize: 12.5, marginTop: 4 }}>{b.awarded}/{b.possible} - {b.step}{b.comment ? ` (${b.comment})` : ""}</div>
             ))}
-            {a.first_wrong_step && view !== "parent" && <div style={{ fontSize: 12.5, color: C.red, marginTop: 4 }}>First wrong step: {a.first_wrong_step}</div>}
-            {/* MCQ key — parent/teacher only. The correct option is an "answer", so the child never sees it. */}
-            {q.type === "mcq" && (view === "parent" || view === "teacher") && q.answer_index != null && (
+            {a.first_wrong_step && <div style={{ fontSize: 12.5, color: C.red, marginTop: 4 }}>First wrong step: {a.first_wrong_step}</div>}
+            {/* MCQ key - parent only. The correct option is an "answer", so the child never sees it. */}
+            {q.type === "mcq" && view === "parent" && q.answer_index != null && (
               <div style={{ fontSize: 12.5, marginTop: 4 }}>
                 <span style={{ color: C.green }}><b>Correct:</b> ({String.fromCharCode(97 + q.answer_index)}) {q.mcq_options?.[q.answer_index]}</span>
                 {a.chosen != null && a.chosen !== q.answer_index &&
@@ -413,7 +413,7 @@ function mdToHtml(md) {
   return out.join("");
 }
 
-// ---------- Answer sheet (parent/teacher): the full answer key for a paper,
+// ---------- Answer sheet (parent): the full answer key for a paper,
 // without anyone attempting it. MCQs show the correct option inline; every
 // question has a "Reveal worked answer" for the full CBSE solution, and the
 // whole key can be downloaded as a print-to-PDF sheet. ----------
@@ -450,7 +450,7 @@ function AnswerSheet({ paper, view, data, setData, onBack }) {
   const onSchemePdf = async (e) => {
     const f = e.target.files?.[0]; if (!f) return;
     if (f.type !== "application/pdf") { setSchemeErr("Please choose a PDF (or paste the text)."); e.target.value = ""; return; }
-    if (f.size > 4.3 * 1024 * 1024) { setSchemeErr("That PDF is over ~4 MB — compress it or paste the text."); e.target.value = ""; return; }
+    if (f.size > 4.3 * 1024 * 1024) { setSchemeErr("That PDF is over ~4 MB - compress it or paste the text."); e.target.value = ""; return; }
     try {
       const b64 = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(",")[1]); r.onerror = () => rej(new Error("read")); r.readAsDataURL(f); });
       await attachScheme({ pdf: b64 });
@@ -472,7 +472,7 @@ function AnswerSheet({ paper, view, data, setData, onBack }) {
       try {
         const r = await api.solve({ question: q.text, chapter: q.chapter, marksTotal: q.marks, scheme: (scheme || {})[q.number] });
         solutions[i] = r.solution || "";
-      } catch { solutions[i] = "_(couldn't generate this one — try again)_"; }
+      } catch { solutions[i] = "_(couldn't generate this one - try again)_"; }
       done++;
       setPdfMsg(`Preparing ${done}/${questions.length}…`);
     };
@@ -495,43 +495,43 @@ function AnswerSheet({ paper, view, data, setData, onBack }) {
       </section>`;
     }).join("");
 
-    const html = `<!doctype html><html><head><meta charset="utf-8"><title>${esc(paper.title)} — Answer key</title>
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>${esc(paper.title)} - Answer key</title>
       <style>
         @page { margin: 14mm; }
         html, body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         body { font-family: 'Segoe UI', system-ui, -apple-system, Arial, sans-serif; color: #232830;
                background: #F2EFE7; margin: 0; padding: 0; font-size: 16px; line-height: 1.65; }
         .wrap { max-width: 780px; margin: 0 auto; padding: 26px 22px 44px; }
-        .head { background: #1B3A8C; color: #fff; border-radius: 14px; padding: 22px 26px; margin-bottom: 24px; }
+        .head { background: #3B5BDB; color: #fff; border-radius: 14px; padding: 22px 26px; margin-bottom: 24px; }
         .brand { font-weight: 800; font-size: 13px; letter-spacing: 2px; text-transform: uppercase; opacity: .92; margin-bottom: 8px; }
         .brand .r { color: #F0A99A; }
         .head h1 { margin: 0; font-size: 25px; line-height: 1.25; }
         .head .sub { opacity: .85; font-size: 13.5px; margin-top: 8px; }
         section { background: #fff; border: 1px solid #E7E1CF; border-radius: 14px; padding: 20px 22px;
                   margin-bottom: 18px; box-shadow: 0 1px 3px rgba(20,30,60,.05); break-inside: avoid; page-break-inside: avoid; }
-        .qh { font-size: 12.5px; font-weight: 700; color: #1B3A8C; text-transform: uppercase; letter-spacing: .5px; }
+        .qh { font-size: 12.5px; font-weight: 700; color: #3B5BDB; text-transform: uppercase; letter-spacing: .5px; }
         .qt { font-size: 18px; font-weight: 600; color: #1a1a1a; margin: 8px 0 12px; }
         .opts { margin: 0 0 12px; }
         .opt { display: inline-block; font-size: 15.5px; margin: 0 14px 6px 0; color: #55606f; }
-        .opt.correct { color: #1B7A3D; font-weight: 700; }
+        .opt.correct { color: #067647; font-weight: 700; }
         .ans { font-size: 16px; }
-        .ans h4 { color: #C0392B; font-size: 15.5px; margin: 16px 0 6px; padding-bottom: 3px; border-bottom: 2px solid #F1E4E0; }
+        .ans h4 { color: #D92D20; font-size: 15.5px; margin: 16px 0 6px; padding-bottom: 3px; border-bottom: 2px solid #F1E4E0; }
         .ans p { margin: 6px 0; }
         .ans ul { margin: 6px 0 6px 22px; } .ans li { margin: 4px 0; }
-        .ans strong { color: #1B3A8C; }
+        .ans strong { color: #3B5BDB; }
         .foot { text-align: center; color: #8a8574; font-size: 11.5px; margin-top: 26px; }
       </style></head>
       <body><div class="wrap">
         <div class="head">
           <div class="brand">Step<span class="r">Check</span> &nbsp;·&nbsp; Answer key</div>
           <h1>${esc(paper.title)}</h1>
-          <div class="sub">CBSE Class 10 Mathematics · full step-by-step worked solutions · for parent/teacher correction</div>
+          <div class="sub">CBSE Class 10 Mathematics · full step-by-step worked solutions · for parent correction</div>
         </div>
         ${body}
-        <div class="foot">Worked to the NCERT / CBSE step-wise method. A study aid — please use your own judgement as the final check.</div>
+        <div class="foot">Worked to the NCERT / CBSE step-wise method. A study aid - please use your own judgement as the final check.</div>
       </div></body></html>`;
 
-    // Print via a hidden same-origin iframe — no pop-up window, so nothing to block.
+    // Print via a hidden same-origin iframe - no pop-up window, so nothing to block.
     const iframe = document.createElement("iframe");
     iframe.setAttribute("aria-hidden", "true");
     Object.assign(iframe.style, { position: "fixed", right: "0", bottom: "0", width: "0", height: "0", border: "0" });
@@ -549,15 +549,15 @@ function AnswerSheet({ paper, view, data, setData, onBack }) {
 
   return (
     <main style={S.main}>
-      <h2 style={S.h2}>Answer key — {paper.title}</h2>
+      <h2 style={S.h2}>Answer key - {paper.title}</h2>
       <div style={{ fontSize: 12.5, color: C.muted, marginBottom: 10, lineHeight: 1.5 }}>
-        Full worked answers for you to check against — this screen is only in Parent/Teacher view; your child never sees it.
+        Full worked answers for you to check against - this screen is only in Parent view; your child never sees it.
       </div>
       {/* Ground the answers in the OFFICIAL CBSE marking scheme (optional). */}
-      <div style={{ background: matched ? "#EAF5EE" : "#EDF2FB", border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", marginBottom: 10 }}>
+      <div style={{ background: matched ? "#EAF5EE" : C.inkSoft, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", marginBottom: 10 }}>
         {matched ? (
           <div style={{ fontSize: 12.5, color: C.green, lineHeight: 1.5 }}>
-            <b>✓ Official CBSE marking scheme attached</b> — matched {matched} of {questions.length} question{questions.length > 1 ? "s" : ""}. Those answers follow the real key and mark split; the rest fall back to the AI method.
+            <b>✓ Official CBSE marking scheme attached</b> - matched {matched} of {questions.length} question{questions.length > 1 ? "s" : ""}. Those answers follow the real key and mark split; the rest fall back to the AI method.
             <button onClick={() => setShowScheme((v) => !v)} style={{ ...S.ghostBtn, fontSize: 11.5, marginLeft: 8, padding: "3px 8px" }}>Replace</button>
           </div>
         ) : (
@@ -584,7 +584,7 @@ function AnswerSheet({ paper, view, data, setData, onBack }) {
       <button onClick={downloadPdf} disabled={pdfBusy} style={{ ...S.primaryBtn, opacity: pdfBusy ? 0.6 : 1, marginBottom: 6 }}>
         {pdfBusy ? (pdfMsg || "Preparing…") : "⬇ Download answer key (PDF)"}
       </button>
-      {pdfBusy && <div style={{ fontSize: 12, color: C.muted, marginBottom: 12 }}>Generating every worked solution — this takes a minute for a full paper. Keep this tab open.</div>}
+      {pdfBusy && <div style={{ fontSize: 12, color: C.muted, marginBottom: 12 }}>Generating every worked solution - this takes a minute for a full paper. Keep this tab open.</div>}
       {!pdfBusy && pdfMsg && <div style={S.errorBox}>{pdfMsg}</div>}
       {questions.map((q) => (
         <div key={q.number} style={S.card}>
@@ -597,7 +597,7 @@ function AnswerSheet({ paper, view, data, setData, onBack }) {
                   ({String.fromCharCode(97 + i)}) {opt}{i === q.answer_index ? "  ✓ correct" : ""}
                 </div>
               ))}
-              {q.answer_index == null && <div style={{ color: C.amber }}>Key not determined — use the worked answer below.</div>}
+              {q.answer_index == null && <div style={{ color: C.amber }}>Key not determined - use the worked answer below.</div>}
             </div>
           )}
           <AnswerKey question={q.text} chapter={q.chapter} marksTotal={q.marks} view={view} scheme={scheme?.[q.number]} />
