@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { S, C } from "./lib/styles.js";
-import { getPin, getView, setView as persistView, loadData, saveData } from "./lib/storage.js";
-import PinGate from "./components/PinGate.jsx";
+import { getView, setView as persistView, loadData, saveData } from "./lib/storage.js";
 import Check from "./components/Check.jsx";
 import Revise from "./components/Revise.jsx";
 import Progress from "./components/Progress.jsx";
@@ -17,12 +16,9 @@ const TABS = [
 const VIEWS = [
   ["child", "Child"],
   ["parent", "Parent"],
-  ["teacher", "Teacher"],
 ];
 
 export default function App() {
-  const [unlocked, setUnlocked] = useState(!!getPin());
-  const [pinMessage, setPinMessage] = useState("");
   const [tab, setTab] = useState("check");
   const [view, setView] = useState(getView());
   const [data, setData] = useState(loadData());
@@ -35,10 +31,6 @@ export default function App() {
 
   // From Revise → "Practice a similar sum": prefill Check and jump to it.
   const practicePrefill = (p) => { setPrefill(p); setTab("check"); };
-
-  if (!unlocked) {
-    return <PinGate message={pinMessage} onUnlocked={() => setUnlocked(true)} />;
-  }
 
   const due = data.mistakes.filter((e) => e.nextReview && e.nextReview <= new Date().toISOString().slice(0, 10)).length;
 
@@ -63,10 +55,10 @@ export default function App() {
 
       <footer style={S.footer}>
         Calibrated to the NCERT method and CBSE step-wise marking (method marks + error-carried-forward).
-        When the teacher's method differs from an app's — the teacher's method wins in the board exam.
+        When your teacher's method differs from the app's, your teacher's method wins in the board exam.
       </footer>
 
-      <nav style={S.tabbar}>
+      <nav style={S.tabbar} className="sc-tabbar">
         {TABS.map(([id, label]) => (
           <button key={id} onClick={() => { setTab(id); if (id !== "check") setPrefill(null); }} style={S.tabBtn(tab === id)}>
             {label}{id === "revise" && due > 0 ? ` (${due})` : ""}

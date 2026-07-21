@@ -14,7 +14,7 @@ A CBSE Class 10 maths **step-verifier** for your son. He photographs or types hi
 ## Fastest path — let Claude Code do it
 Open Claude Code in this folder and say:
 
-> Deploy this to Vercel. Then tell me exactly where to paste my ANTHROPIC_API_KEY and set APP_PIN.
+> Deploy this to Vercel. Then tell me exactly where to paste my ANTHROPIC_API_KEY.
 
 Claude Code will run the steps below for you. If you'd rather do it by hand:
 
@@ -24,7 +24,7 @@ Claude Code will run the steps below for you. If you'd rather do it by hand:
    npm install
    npm run dev
    ```
-   Open the local URL. You'll see the PIN screen (it can't check answers yet until the key is set on a deploy — that's expected).
+   Open the local URL. The app opens straight to the Check tab (AI checks need the key — run `npm run dev:api` with a `.env`, or deploy).
 
 2. **Put the code on GitHub**
    ```bash
@@ -35,17 +35,17 @@ Claude Code will run the steps below for you. If you'd rather do it by hand:
 3. **Import into Vercel**
    - Go to vercel.com → Add New → Project → import your GitHub repo.
    - Framework preset: **Vite**. Leave build settings as detected.
-   - Before deploying, open **Environment Variables** and add three:
+   - Before deploying, open **Environment Variables** and add two:
      | Name | Value |
      |------|-------|
      | `ANTHROPIC_API_KEY` | your key from console.anthropic.com |
-     | `APP_PIN` | any short PIN you choose, e.g. `4271` |
      | `ANTHROPIC_MODEL` | `claude-sonnet-5` (optional) |
    - Click **Deploy**.
 
 4. **Open it on your son's phone**
-   - Visit the Vercel URL, enter the family PIN once.
+   - Visit the Vercel URL.
    - In the browser menu choose **Add to Home Screen** — it now behaves like an app.
+   - ⚠ There is no login: anyone who has the URL can run checks billed to your API key, so share the URL only within the family.
 
 ---
 

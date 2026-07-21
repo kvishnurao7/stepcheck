@@ -1,62 +1,170 @@
+// Style tokens. Colours are CSS variables from src/index.css, so every surface
+// follows the system light/dark theme automatically.
 export const C = {
-  paper: "#F2EFE7",
-  ink: "#1B3A8C",
-  red: "#C0392B",
-  green: "#1B7A3D",
-  amber: "#8A6D1D",
-  cream: "#FFFDF7",
-  line: "#DCE6F5",
-  border: "#C9D0E0",
-  muted: "#5A6B8C",
-  text: "#1D2B50",
+  bg: "var(--bg)",
+  surface: "var(--surface)",
+  surface2: "var(--surface-2)",
+  sunken: "var(--surface-sunken)",
+
+  ink: "var(--accent)",        // brand / primary action
+  inkSoft: "var(--accent-soft)",
+  red: "var(--danger)",
+  redSoft: "var(--danger-soft)",
+  green: "var(--success)",
+  greenSoft: "var(--success-soft)",
+  amber: "var(--warn)",
+  amberSoft: "var(--warn-soft)",
+
+  border: "var(--border)",
+  borderStrong: "var(--border-strong)",
+  text: "var(--text)",
+  muted: "var(--text-muted)",
+  faint: "var(--text-faint)",
+
+  // Legacy aliases kept so older call sites keep working.
+  paper: "var(--bg)",
+  cream: "var(--surface-2)",
+  line: "var(--border)",
 };
 
+const FONT_DISPLAY = "var(--font-display)";
+
 export const S = {
-  app: { maxWidth: 560, margin: "0 auto", minHeight: "100vh", background: C.paper,
-    fontFamily: "-apple-system, 'Segoe UI', Roboto, sans-serif", color: C.text, paddingBottom: 76 },
-  header: { padding: "16px 16px 8px", display: "flex", justifyContent: "space-between", alignItems: "flex-start" },
-  logo: { fontSize: 24, fontWeight: 800, letterSpacing: "-0.5px", color: C.ink },
-  tagline: { fontSize: 12, color: C.muted, marginTop: 2 },
-  viewSwitch: { display: "flex", gap: 4, background: "#fff", border: `1.5px solid ${C.border}`, borderRadius: 8, padding: 2 },
-  viewBtn: (on) => ({ padding: "4px 8px", fontSize: 11, fontWeight: 700, border: "none", borderRadius: 6,
-    background: on ? C.ink : "transparent", color: on ? "#fff" : C.muted, cursor: "pointer" }),
-  main: { padding: "10px 16px 0" },
-  label: { display: "block", fontSize: 12, fontWeight: 700, color: C.muted, margin: "12px 0 4px",
-    textTransform: "uppercase", letterSpacing: "0.4px" },
-  select: { width: "100%", padding: 10, borderRadius: 8, border: `1.5px solid ${C.border}`, fontSize: 14, background: "#fff" },
-  textarea: { width: "100%", padding: 10, borderRadius: 8, border: `1.5px solid ${C.border}`, fontSize: 14,
-    background: "#fff", boxSizing: "border-box", resize: "vertical" },
-  preview: { width: "100%", borderRadius: 8, marginTop: 8, border: `1.5px solid ${C.border}` },
-  errorBox: { marginTop: 10, padding: "9px 12px", background: "#FBEAEA", border: "1px solid #E3B4B4",
-    borderRadius: 8, fontSize: 13, color: "#8C2B2B" },
-  primaryBtn: { width: "100%", marginTop: 14, padding: "13px 0", background: C.ink, color: "#fff",
-    fontSize: 15.5, fontWeight: 700, border: "none", borderRadius: 10, cursor: "pointer" },
-  ghostBtn: { padding: "10px 16px", background: "#fff", border: `1.5px solid ${C.ink}`, color: C.ink,
-    fontWeight: 700, fontSize: 13.5, borderRadius: 8, cursor: "pointer" },
-  chip: (bg) => ({ display: "inline-block", minWidth: 22, textAlign: "center", padding: "2px 7px",
-    background: bg, color: "#fff", fontWeight: 800, fontSize: 11, borderRadius: 6 }),
-  notebook: { display: "flex", marginTop: 16, background: C.cream, border: "1px solid #D8D2C0",
-    borderRadius: 6, overflow: "hidden",
-    backgroundImage: "repeating-linear-gradient(transparent, transparent 27px, #DCE6F5 27px, #DCE6F5 28px)" },
-  margin: { width: 3, background: "#D9534F", marginLeft: 26, flexShrink: 0 },
-  page: { padding: "14px 14px 14px 12px", flex: 1 },
-  pen: { fontFamily: "'Caveat', cursive", fontSize: 27, fontWeight: 700, lineHeight: 1, marginBottom: 10 },
-  rowLabel: { fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 2 },
-  rowBody: { fontSize: 14, lineHeight: 1.45 },
-  h2: { fontSize: 15, fontWeight: 800, color: C.ink, margin: "8px 0 10px" },
-  card: { background: "#fff", border: "1px solid #DDD8C9", borderRadius: 8, padding: "10px 12px", marginBottom: 8 },
-  meta: { fontSize: 11.5, color: C.muted, marginBottom: 3 },
-  empty: { padding: "22px 16px", textAlign: "center", fontSize: 14, color: C.muted, lineHeight: 1.5 },
-  tabbar: { position: "fixed", bottom: 0, left: 0, right: 0, maxWidth: 560, margin: "0 auto",
-    display: "flex", background: "#fff", borderTop: `1px solid ${C.border}` },
-  tabBtn: (on) => ({ flex: 1, padding: "10px 0 12px", border: "none", background: "none",
-    fontSize: 11.5, fontWeight: 700, color: on ? C.ink : C.muted, cursor: "pointer",
-    borderTop: `3px solid ${on ? C.ink : "transparent"}` }),
-  footer: { padding: "18px 16px 8px", fontSize: 11, color: "#8A8674", lineHeight: 1.5, textAlign: "center" },
-  bar: { display: "flex", alignItems: "center", gap: 8, marginBottom: 7 },
-  barLabel: { width: 128, fontSize: 12, fontWeight: 600 },
-  barTrack: { flex: 1, height: 14, background: "#E4E0D4", borderRadius: 7 },
-  barN: { width: 40, fontSize: 12.5, fontWeight: 700, textAlign: "right" },
+  app: {
+    maxWidth: 620, margin: "0 auto", minHeight: "100dvh", background: C.bg,
+    fontFamily: "var(--font-body)", color: C.text, paddingBottom: 96,
+  },
+
+  header: {
+    padding: "20px 20px 12px", display: "flex",
+    justifyContent: "space-between", alignItems: "center", gap: 12,
+  },
+  logo: {
+    fontFamily: FONT_DISPLAY, fontSize: 25, fontWeight: 700,
+    letterSpacing: "-0.6px", color: C.ink, lineHeight: 1.1,
+  },
+  tagline: { fontSize: 12.5, color: C.muted, marginTop: 3, lineHeight: 1.4 },
+
+  // Segmented control (Child / Parent)
+  viewSwitch: {
+    display: "flex", gap: 2, background: C.sunken,
+    border: `1px solid ${C.border}`, borderRadius: "var(--r-pill)", padding: 3,
+  },
+  viewBtn: (on) => ({
+    padding: "6px 14px", fontSize: 12.5, fontWeight: 650, border: "none",
+    borderRadius: "var(--r-pill)", cursor: "pointer",
+    background: on ? C.surface : "transparent",
+    color: on ? C.ink : C.muted,
+    boxShadow: on ? "var(--shadow-sm)" : "none",
+  }),
+
+  main: { padding: "6px 20px 0" },
+
+  label: {
+    display: "block", fontSize: 12, fontWeight: 650, color: C.muted,
+    margin: "18px 0 7px", letterSpacing: "0.2px",
+  },
+
+  select: {
+    width: "100%", padding: "12px 13px", borderRadius: "var(--r-sm)",
+    border: `1px solid ${C.borderStrong}`, fontSize: 15, background: C.surface,
+    color: C.text, appearance: "none",
+  },
+  textarea: {
+    width: "100%", padding: "12px 13px", borderRadius: "var(--r-sm)",
+    border: `1px solid ${C.borderStrong}`, fontSize: 15, background: C.surface,
+    color: C.text, boxSizing: "border-box", resize: "vertical", lineHeight: 1.55,
+  },
+  preview: {
+    width: "100%", borderRadius: "var(--r-md)", marginTop: 10,
+    border: `1px solid ${C.border}`, display: "block",
+  },
+
+  errorBox: {
+    marginTop: 12, padding: "11px 13px", background: C.redSoft,
+    border: `1px solid ${C.red}`, borderRadius: "var(--r-sm)",
+    fontSize: 13.5, color: C.red, lineHeight: 1.5,
+  },
+
+  primaryBtn: {
+    width: "100%", marginTop: 18, padding: "14px 0", background: C.ink,
+    color: "var(--accent-on)", fontSize: 15.5, fontWeight: 650, border: "none",
+    borderRadius: "var(--r-md)", boxShadow: "var(--shadow-sm)",
+  },
+  ghostBtn: {
+    padding: "10px 16px", background: C.surface,
+    border: `1px solid ${C.borderStrong}`, color: C.ink,
+    fontWeight: 650, fontSize: 13.5, borderRadius: "var(--r-sm)",
+  },
+  // Tinted rather than solid: a solid chip with white text fails contrast in
+  // dark mode, where the semantic colours are light. Tint + coloured text
+  // reads correctly in both themes.
+  chip: (bg) => ({
+    display: "inline-block", minWidth: 24, textAlign: "center",
+    padding: "3px 10px", background: `color-mix(in srgb, ${bg} 15%, transparent)`,
+    border: `1px solid color-mix(in srgb, ${bg} 32%, transparent)`,
+    color: bg, fontWeight: 700, fontSize: 11.5,
+    borderRadius: "var(--r-pill)", letterSpacing: "0.2px",
+  }),
+
+  // Result panel. The old ruled-paper texture is gone; the verdict now reads
+  // through a coloured accent rail + the handwriting font.
+  notebook: {
+    display: "flex", marginTop: 18, background: C.surface,
+    border: `1px solid ${C.border}`, borderRadius: "var(--r-lg)",
+    overflow: "hidden", boxShadow: "var(--shadow-md)",
+  },
+  margin: { width: 4, background: C.ink, flexShrink: 0 },
+  page: { padding: "16px 18px", flex: 1, minWidth: 0 },
+  pen: {
+    fontFamily: "var(--font-hand)", fontSize: 30, fontWeight: 700,
+    lineHeight: 1.05, marginBottom: 14,
+  },
+  rowLabel: {
+    fontSize: 11, fontWeight: 700, textTransform: "uppercase",
+    letterSpacing: "0.6px", marginBottom: 3, color: C.muted,
+  },
+  rowBody: { fontSize: 14.5, lineHeight: 1.55 },
+
+  h2: {
+    fontFamily: FONT_DISPLAY, fontSize: 19, fontWeight: 650, color: C.text,
+    margin: "14px 0 12px", letterSpacing: "-0.3px",
+  },
+  card: {
+    background: C.surface, border: `1px solid ${C.border}`,
+    borderRadius: "var(--r-md)", padding: "14px 16px", marginBottom: 10,
+    boxShadow: "var(--shadow-sm)",
+  },
+  meta: { fontSize: 12.5, color: C.muted, marginBottom: 4 },
+  empty: {
+    padding: "32px 20px", textAlign: "center", fontSize: 14.5, color: C.muted,
+    lineHeight: 1.6, background: C.surface, border: `1px dashed ${C.borderStrong}`,
+    borderRadius: "var(--r-md)",
+  },
+
+  tabbar: {
+    position: "fixed", bottom: 0, left: 0, right: 0, maxWidth: 620,
+    margin: "0 auto", display: "flex", background: C.surface,
+    borderTop: `1px solid ${C.border}`, boxShadow: "0 -2px 12px rgba(16,24,40,.05)",
+  },
+  tabBtn: (on) => ({
+    flex: 1, padding: "12px 0 14px", border: "none", background: "none",
+    fontSize: 12, fontWeight: 650, color: on ? C.ink : C.muted,
+    borderTop: `2px solid ${on ? C.ink : "transparent"}`,
+  }),
+
+  footer: {
+    padding: "24px 20px 10px", fontSize: 11.5, color: C.faint,
+    lineHeight: 1.6, textAlign: "center",
+  },
+
+  bar: { display: "flex", alignItems: "center", gap: 10, marginBottom: 9 },
+  barLabel: { width: 132, fontSize: 12.5, fontWeight: 550, color: C.text },
+  barTrack: {
+    flex: 1, height: 8, background: C.sunken,
+    borderRadius: "var(--r-pill)", overflow: "hidden",
+  },
+  barN: { width: 44, fontSize: 12.5, fontWeight: 650, textAlign: "right", color: C.muted },
 };
 
 export const CHAPTERS = [

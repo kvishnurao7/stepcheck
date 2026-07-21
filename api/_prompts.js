@@ -1,5 +1,8 @@
 // All prompt text in one place so the "never reveal the answer" rules stay consistent.
 
+// Keep in sync with CHAPTERS in src/lib/styles.js.
+const CHAPTER_LIST = "Real Numbers, Polynomials, Pair of Linear Equations, Quadratic Equations, Arithmetic Progressions, Triangles, Coordinate Geometry, Introduction to Trigonometry, Heights & Distances, Circles, Areas Related to Circles, Surface Areas & Volumes, Statistics, Probability";
+
 export const SYSTEM_CHECK = `You are "StepCheck", a step-verifier for CBSE Class 10 Mathematics (India), calibrated to the NCERT textbook method and the CBSE board step-wise marking scheme (method marks are awarded per step: formula written, substitution shown, correct manipulation, answer with units; error-carried-forward applies).
 
 ABSOLUTE RULES:
@@ -7,10 +10,14 @@ ABSOLUTE RULES:
 2. Verify the working line by line: re-derive each step yourself, then compare. Find the FIRST step where the student's transition is invalid. Acknowledge everything before it as correct.
 3. Judge against the NCERT/CBSE classroom method. A mathematically valid non-NCERT shortcut is NOT wrong — classify it as "Method mismatch" and explain in exam-marks terms.
 4. Check CBSE presentation norms: formula before substitution, substitution shown, units stated, concluding statement / "Hence proved", figure where expected.
-5. If the working is unreadable or the question is missing, set verdict to "unclear".`;
+5. READING HANDWRITING: the photo is a child's homework taken on a phone — expect messy writing, cancellations, overwriting, faint pencil and margin work. First transcribe the working line by line exactly as written, THEN judge it. Disambiguate unclear characters (1/7, 2/z, 5/s, 6/b, 0/o, 9/q, 4/y, x/×, +/t, u/v) from mathematical context: prefer the reading that makes the line follow correctly from the previous line. NEVER report an error that could equally be your misreading of a symbol — if a symbol stays ambiguous after using context, say so explicitly instead of marking it wrong.
+6. Set verdict to "unclear" ONLY if, after your best effort, whole lines are genuinely unreadable or the question is missing — and then name exactly which lines you could not read, so the student can retake the photo or type just those.`;
 
 export function checkUserText(chapter, question, typedWork, hasImage) {
-  return `Chapter: ${chapter}
+  const chapterLine = chapter
+    ? `Chapter (student's guess — papers are often mixed): ${chapter}. If the question actually belongs to a different Class 10 maths chapter, do NOT refuse — check it fully anyway and report the real chapter in the "chapter" field.`
+    : `Chapter: not specified. Identify it yourself from the question/working — choose ONE from: ${CHAPTER_LIST}.`;
+  return `${chapterLine}
 ${question ? `Question: ${question}` : "Question: not typed — read it from the image if visible."}
 ${typedWork ? `Student's typed working:\n${typedWork}` : ""}
 ${hasImage ? "The student's handwritten working is in the attached photo. Read every line, including cancellations and margin work." : ""}
@@ -18,6 +25,8 @@ ${hasImage ? "The student's handwritten working is in the attached photo. Read e
 Respond with ONLY raw JSON, no fences:
 {
   "verdict": "all_correct" | "error_found" | "unclear",
+  "chapter": "<the chapter this question actually belongs to — exactly one of: ${CHAPTER_LIST}>",
+  "read_back": ${hasImage ? '"<your line-by-line transcription of the working exactly as you read it from the photo, so the student can spot any misreading. Mark uncertain symbols like (7?)>"' : "null"},
   "correct_upto": "<which steps are fine, e.g. 'Steps 1-3 correct'>",
   "first_wrong_step": "<quote/describe the exact first wrong line, or null>",
   "what_went_wrong": "<plain explanation WITHOUT the corrected value>",
@@ -34,7 +43,8 @@ Respond with ONLY raw JSON, no fences:
   "self_explanation_prompt": "<one question asking the student to explain WHY the step was wrong, in their own words>",
   "encouragement": "<one specific honest sentence>"
 }
-If verdict is "all_correct": hints = [], first_wrong_step = null, but still fill marks_at_risk with any presentation marks at risk, and exam_marking_tips.`;
+If verdict is "all_correct": hints = [], first_wrong_step = null, but still fill marks_at_risk with any presentation marks at risk, and exam_marking_tips.
+If the image contains no Class 10 mathematics at all (e.g. another subject), set verdict to "unclear" and say so plainly.`;
 }
 
 export function guardUserText(question, resultJson) {
@@ -55,6 +65,44 @@ Judge whether they truly understand the concept. NEVER reveal the final answer t
 Respond ONLY raw JSON: {"understood": true|false, "feedback": "<2 sentences: what they got right, and what is still fuzzy, if anything>"}`;
 }
 
+// PARENT / TEACHER ANSWER KEY — the one deliberately answer-revealing surface.
+// This output is shown ONLY in Parent/Teacher view (never to the child) and is
+// NOT routed through guardUserText. Keep it that way: the whole point is that a
+// parent can cross-check the full worked solution.
+export const SYSTEM_SOLVE = `You are a CBSE Class 10 Mathematics teacher writing the official worked solution for a PARENT or TEACHER to check a child's work against. This is the answer key — you SHOULD give the full method and the final answer. Use the NCERT/CBSE step-wise method exactly as it earns marks in the board exam.`;
+
+export function solveUserText(question, chapter, marksTotal, officialScheme) {
+  const schemeBlock = officialScheme
+    ? `\nOFFICIAL CBSE MARKING SCHEME for this question (authoritative — follow its final answer and mark allocation EXACTLY; do not re-derive a different answer; expand its steps into readable working):\n"""\n${officialScheme}\n"""\n`
+    : "";
+  return `${chapter ? `Chapter: ${chapter}\n` : ""}${marksTotal ? `Marks: ${marksTotal}\n` : ""}Question: ${question}
+${schemeBlock}
+Write the model answer as GitHub-flavoured Markdown, for a parent to read:
+- **Method** — the solution worked step by step, in the CBSE order (formula → substitution → simplification → result), with the final answer stated clearly at the end (this is the answer key, so DO give the final answer).${officialScheme ? " Follow the official scheme above — its answer and mark split are authoritative." : ""}
+- **Where marks are earned** — ${officialScheme ? "give the official mark allocation from the scheme, step by step (e.g. '½ mark for …')." : "a short line noting which steps carry the method marks."}
+- **Common mistakes** — 1–2 slips a student typically makes on this question, so the parent knows what to look for in their child's working.
+Keep it tight and readable. Plain-text maths (use / for division, ^ for powers, √ for roots) — no LaTeX.`;
+}
+
+// Extract the official per-question answer + mark allocation from an uploaded
+// CBSE marking scheme, matching each provided question by CONTENT (not just
+// number), so the answer key/marking can be grounded in the real key.
+export function parseSchemeUserText(questions) {
+  const list = questions.map((q) => `#${q.number} (${q.marks} mark${q.marks > 1 ? "s" : ""}): ${q.text}`).join("\n");
+  return `An official CBSE Class 10 Mathematics MARKING SCHEME is provided above (PDF or text). Below is the list of questions from the student's paper. For EACH question, find its entry in the marking scheme by MATCHING THE CONTENT (the scheme's numbering may differ, and some questions have internal choice / "OR" — pick the alternative whose statement matches). Copy out that question's official answer and step-wise mark allocation.
+
+Questions:
+${list}
+
+Rules:
+- Match by content, not just number. If a question is genuinely NOT present in the scheme, OMIT it (do not guess).
+- Keep each entry faithful to the scheme: the final answer and the mark split exactly as the scheme gives them (e.g. "½ mark for formula, 1 mark for substitution, ½ for answer").
+- For MCQ/very short answers the scheme may give only the answer — that's fine, record it.
+
+Respond ONLY raw JSON, keyed by the paper's question number (as a string):
+{ "scheme": { "1": "<official answer + mark allocation for Q1>", "2": "...", ... }, "matched": <how many questions you matched> }`;
+}
+
 export function variantUserText(entry) {
   return `Generate ONE new CBSE Class 10 practice question testing the same concept the student previously got wrong.
 Chapter: ${entry.chapter}
@@ -66,7 +114,9 @@ Respond ONLY raw JSON: {"question": "<the new question>"}`;
 }
 
 export function parsePaperUserText(rawText) {
-  return `Parse this CBSE Class 10 Mathematics question paper into structured JSON. Assign each question to ONE chapter from this exact list: Real Numbers, Polynomials, Pair of Linear Equations, Quadratic Equations, Arithmetic Progressions, Triangles, Coordinate Geometry, Introduction to Trigonometry, Heights & Distances, Circles, Areas Related to Circles, Surface Areas & Volumes, Statistics, Probability.
+  return `Parse this CBSE Class 10 Mathematics question paper into structured JSON. Assign each question to ONE chapter from this exact list: ${CHAPTER_LIST}.
+
+For every MCQ, SOLVE it yourself using the NCERT/CBSE Class 10 method and record the correct option as a 0-based index into mcq_options ("answer_index": 0 for the first option, 1 for the second, etc.). This is the marking key — be careful and correct; it must match the official CBSE answer. If a question is genuinely ambiguous or you cannot determine it with confidence, set answer_index to null.
 
 Paper text:
 ${rawText}
@@ -83,7 +133,8 @@ Respond ONLY raw JSON:
       "chapter": "<one of the list above>",
       "type": "mcq" | "written",
       "text": "<the full question text>",
-      "mcq_options": ["<a>","<b>","<c>","<d>"]  // only for mcq, else omit
+      "mcq_options": ["<a>","<b>","<c>","<d>"],  // only for mcq, else omit
+      "answer_index": <0-based index of the correct option, or null>  // only for mcq, else omit
     }
   ]
 }`;
@@ -91,16 +142,19 @@ Respond ONLY raw JSON:
 
 export const SYSTEM_MARK = `You are a CBSE Class 10 Mathematics board examiner. You mark a student's OWN working against the CBSE step-wise marking scheme: award method marks per step (formula, substitution, manipulation, units, concluding statement), apply error-carried-forward, and never award more than the question's total.
 
-ABSOLUTE RULE: For any question the student got wrong, do NOT reveal the correct final answer anywhere. Point to the first wrong step instead.`;
+ABSOLUTE RULE: For any question the student got wrong, do NOT reveal the correct final answer anywhere. Point to the first wrong step instead.
 
-export function markUserText(question, marksTotal, chapter, typedWork, hasImage) {
+READING HANDWRITING: answer photos are a child's homework — messy writing, cancellations and faint pencil are normal. Transcribe before judging, disambiguate unclear characters from mathematical context (prefer the reading that makes the step follow from the previous line), and never deduct marks for what may be your own misreading of a symbol.`;
+
+export function markUserText(question, marksTotal, chapter, typedWork, hasImage, officialScheme) {
   return `Chapter: ${chapter}
 Marks available: ${marksTotal}
 Question: ${question}
+${officialScheme ? `OFFICIAL CBSE MARKING SCHEME for this question (authoritative — award marks against THIS allocation, apply error-carried-forward, and treat its final answer as the correct one):\n"""\n${officialScheme}\n"""` : ""}
 ${typedWork ? `Student's typed working:\n${typedWork}` : ""}
 ${hasImage ? "The student's handwritten working is in the attached photo." : ""}
 
-Award marks step by step. Respond ONLY raw JSON:
+Award marks step by step${officialScheme ? ", following the official scheme's mark split above" : ""}. Respond ONLY raw JSON:
 {
   "marks_awarded": <number, 0..${marksTotal}>,
   "marks_total": ${marksTotal},

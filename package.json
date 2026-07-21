@@ -6,6 +6,7 @@
   "description": "StepCheck — a CBSE Class 10 maths step-verifier that checks a student's own working, finds the first wrong step, and never reveals the answer.",
   "scripts": {
     "dev": "vite",
+    "dev:api": "node scripts/dev-api.mjs",
     "build": "vite build",
     "preview": "vite preview"
   },

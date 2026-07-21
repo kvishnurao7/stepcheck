@@ -1,16 +1,11 @@
-// Thin client for the serverless functions. The PIN is attached to every call.
-import { getPin, clearPin } from "./storage.js";
+// Thin client for the serverless functions.
 
 async function post(path, body) {
   const res = await fetch(`/api/${path}`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ ...body, pin: getPin() }),
+    body: JSON.stringify(body),
   });
-  if (res.status === 401) {
-    clearPin();
-    throw new Error("PIN rejected. Please re-enter the family PIN.");
-  }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.detail || data.error || "Request failed.");
   return data;
@@ -22,4 +17,6 @@ export const api = {
   variant: (b) => post("variant", b),
   parsePaper: (b) => post("parse-paper", b),
   markAnswer: (b) => post("mark-answer", b),
+  solve: (b) => post("solve", b), // parent answer key - reveals the answer, gate to parent views
+  parseScheme: (b) => post("parse-scheme", b), // extract official CBSE marking scheme per question
 };

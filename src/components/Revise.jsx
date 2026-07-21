@@ -38,7 +38,7 @@ export default function Revise({ data, setData, onPractice }) {
       {error && <div style={S.errorBox}>{error}</div>}
       <h2 style={S.h2}>Due today ({due.length})</h2>
       {due.length === 0 ? (
-        <div style={S.empty}>Nothing due. Mistakes you save come back on day 1, 3, 7 and 21 — spacing is what makes them stick.</div>
+        <div style={S.empty}>Nothing due. Mistakes you save come back on day 1, 3, 7 and 21 - spacing is what makes them stick.</div>
       ) : due.map((e) => (
         <div key={e.id} style={S.card}>
           <div style={S.meta}>{e.chapter} · <b>{e.errorType}</b> · saved {e.date}</div>
@@ -46,11 +46,11 @@ export default function Revise({ data, setData, onPractice }) {
           {e.concept && <div style={{ fontSize: 12.5, color: C.green, marginTop: 4, fontWeight: 600 }}>Concept: {e.concept}</div>}
           <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
             <button onClick={() => practice(e)} disabled={busyId === e.id}
-              style={{ padding: "9px 12px", background: C.ink, border: "none", color: "#fff", fontWeight: 700, fontSize: 12.5, borderRadius: 8, cursor: "pointer" }}>
+              style={{ padding: "9px 12px", background: C.ink, border: "none", color: "var(--accent-on)", fontWeight: 700, fontSize: 12.5, borderRadius: 8, cursor: "pointer" }}>
               {busyId === e.id ? "Making a sum…" : "Practice a similar sum"}
             </button>
             <button onClick={() => markRevised(e.id)}
-              style={{ padding: "9px 12px", background: "#fff", border: `1.5px solid ${C.green}`, color: C.green, fontWeight: 700, fontSize: 12.5, borderRadius: 8, cursor: "pointer" }}>
+              style={{ padding: "9px 12px", background: C.surface, border: `1.5px solid ${C.green}`, color: C.green, fontWeight: 700, fontSize: 12.5, borderRadius: 8, cursor: "pointer" }}>
               Revised ✓
             </button>
           </div>
@@ -61,7 +61,7 @@ export default function Revise({ data, setData, onPractice }) {
         <>
           <h2 style={{ ...S.h2, marginTop: 18 }}>Coming up</h2>
           {upcoming.slice(0, 8).map((e) => (
-            <div key={e.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, padding: "6px 2px", borderBottom: "1px solid #E4E0D4" }}>
+            <div key={e.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, padding: "6px 2px", borderBottom: `1px solid ${C.border}` }}>
               <span>{e.chapter} · {e.errorType}</span>
               <span style={{ color: C.muted }}>{e.nextReview}</span>
             </div>
